@@ -186,6 +186,10 @@ export type Database = {
         };
         Returns: boolean;
       };
+      dashboard_stats: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
     };
     Enums: {
       user_role: "USER" | "AGENT" | "ADMIN";
