@@ -32,6 +32,7 @@ export type Database = {
           avatar_url: string | null;
           role: Database["public"]["Enums"]["user_role"];
           is_active: boolean;
+          is_superuser: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -42,6 +43,7 @@ export type Database = {
           avatar_url?: string | null;
           role?: Database["public"]["Enums"]["user_role"];
           is_active?: boolean;
+          is_superuser?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -52,6 +54,7 @@ export type Database = {
           avatar_url?: string | null;
           role?: Database["public"]["Enums"]["user_role"];
           is_active?: boolean;
+          is_superuser?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -100,6 +103,7 @@ export type Database = {
           description: string | null;
           is_active: boolean;
           ticket_seq: number;
+          created_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -110,6 +114,7 @@ export type Database = {
           description?: string | null;
           is_active?: boolean;
           ticket_seq?: number;
+          created_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -120,10 +125,50 @@ export type Database = {
           description?: string | null;
           is_active?: boolean;
           ticket_seq?: number;
+          created_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Relationships: [];
+      };
+      project_members: {
+        Row: {
+          project_id: string;
+          user_id: string;
+          role: Database["public"]["Enums"]["project_role"];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          project_id: string;
+          user_id: string;
+          role?: Database["public"]["Enums"]["project_role"];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          project_id?: string;
+          user_id?: string;
+          role?: Database["public"]["Enums"]["project_role"];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_members_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       tickets: {
         Row: {
@@ -239,6 +284,15 @@ export type Database = {
         Args: { p_project_id: string };
         Returns: Json;
       };
+      project_role_of: {
+        Args: { p_project: string };
+        Returns: Database["public"]["Enums"]["project_role"] | null;
+      };
+      can_view_project: { Args: { p_project: string }; Returns: boolean };
+      is_project_staff: { Args: { p_project: string }; Returns: boolean };
+      can_manage_project: { Args: { p_project: string }; Returns: boolean };
+      shares_project_with: { Args: { p_user: string }; Returns: boolean };
+      find_user_by_email: { Args: { p_email: string }; Returns: string | null };
     };
     Enums: {
       user_role: "USER" | "AGENT" | "ADMIN";
@@ -249,6 +303,7 @@ export type Database = {
         | "RESOLVED"
         | "CLOSED";
       ticket_priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+      project_role: "VIEWER" | "MEMBER" | "AGENT" | "MANAGER";
     };
     CompositeTypes: {
       [_ in never]: never;

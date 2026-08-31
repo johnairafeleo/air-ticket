@@ -10,7 +10,12 @@ import { PriorityBadge } from "@/components/tickets/ticket-badges";
 import { TicketDetailDialog } from "@/components/tickets/ticket-detail-dialog";
 import { cn } from "@/lib/utils";
 import { initialsOf } from "@/lib/users";
-import type { Category, Profile, TicketWithRelations } from "@/types/app";
+import type {
+  Category,
+  ProjectMemberWithProfile,
+  TicketActor,
+  TicketWithRelations,
+} from "@/types/app";
 
 /**
  * A single board card.
@@ -36,8 +41,8 @@ export function TicketCard({
 }: {
   ticket: TicketWithRelations;
   draggable: boolean;
-  actor: Profile;
-  agents: Profile[];
+  actor: TicketActor;
+  agents: ProjectMemberWithProfile[];
   categories: Category[];
   canEdit?: boolean;
   isDragging?: boolean;

@@ -18,7 +18,6 @@ import {
   TICKET_PRIORITIES,
   TICKET_STATUSES,
   type Category,
-  type Profile,
 } from "@/types/app";
 
 /** Sentinel for "no filter" — Radix Select cannot hold an empty string value. */
@@ -33,10 +32,11 @@ const SCOPES = [
 
 export function TicketFilters({
   categories,
-  actor,
+  canSeeOthersTickets,
 }: {
   categories: Category[];
-  actor: Profile;
+  /** Project agents, managers and system admins see more than their own. */
+  canSeeOthersTickets: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -98,9 +98,9 @@ export function TicketFilters({
     current.categoryId !== ANY ||
     current.scope !== "all";
 
-  // A plain USER only ever sees their own tickets, so a scope picker would be
-  // three inert options and one real one.
-  const showScope = actor.role !== "USER";
+  // A project MEMBER only ever sees their own tickets, so a scope picker would
+  // be three inert options and one real one.
+  const showScope = canSeeOthersTickets;
 
   return (
     <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">

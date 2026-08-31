@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-import { requireRole, requireUser } from "@/lib/auth/require-user";
+import { requireUser } from "@/lib/auth/require-user";
 import { createClient } from "@/lib/supabase/server";
 import { fail, ok, zodFieldErrors, type ActionResult } from "@/lib/actions/result";
 import { ACTIVE_PROJECT_COOKIE } from "@/lib/projects/active";
@@ -47,8 +47,14 @@ export async function setActiveProject(input: unknown): Promise<ActionResult> {
   return ok();
 }
 
+/**
+ * Create a project.
+ *
+ * Open to any signed-in user since 0011: the creator becomes its MANAGER, so a
+ * new account can set itself up without an administrator. RLS still decides.
+ */
 export async function createProject(input: unknown): Promise<ActionResult> {
-  await requireRole("ADMIN");
+  await requireUser();
 
   const parsed = createProjectSchema.safeParse(input);
   if (!parsed.success) {
@@ -74,8 +80,9 @@ export async function createProject(input: unknown): Promise<ActionResult> {
   return ok();
 }
 
+/** Edit a project. Requires MANAGER on it, enforced by RLS. */
 export async function updateProject(input: unknown): Promise<ActionResult> {
-  await requireRole("ADMIN");
+  await requireUser();
 
   const parsed = updateProjectSchema.safeParse(input);
   if (!parsed.success) {
@@ -97,6 +104,9 @@ export async function updateProject(input: unknown): Promise<ActionResult> {
   if (error) {
     if (error.code === "23505") {
       return fail("Another project already uses that name.");
+    }
+    if (error.message.includes("row-level security")) {
+      return fail("Only a project manager can change this project.");
     }
     return fail("Could not update the project.");
   }

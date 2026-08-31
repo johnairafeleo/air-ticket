@@ -1,4 +1,4 @@
-import type { Profile, TicketPriority, TicketStatus } from "@/types/app";
+import type { TicketActor, TicketPriority, TicketStatus } from "@/types/app";
 
 /**
  * Ticket display metadata and the client-side view of the status workflow.
@@ -92,19 +92,29 @@ export function canTransition(from: TicketStatus, to: TicketStatus): boolean {
 }
 
 /**
- * Statuses `actor` may move this ticket to.
+ * Statuses `actor` may move this ticket to, given their role IN THIS PROJECT.
  *
- * A requester gets exactly one option — closing something that has been
- * resolved. Support staff get the full transition set. This matches
- * `guard_ticket_change()`; the database rejects anything else regardless.
+ * A VIEWER gets nothing. A MEMBER gets exactly one option — closing their own
+ * resolved ticket. Agents, managers and system admins get the full transition
+ * set. Mirrors `guard_ticket_change()`; the database rejects anything else
+ * regardless of what this returns.
  */
 export function availableStatuses(
-  actor: Profile,
+  actor: TicketActor,
   current: TicketStatus,
   isOwner: boolean,
 ): readonly TicketStatus[] {
-  if (actor.role === "USER") {
+  const isStaff =
+    actor.isSystemAdmin ||
+    actor.projectRole === "AGENT" ||
+    actor.projectRole === "MANAGER";
+
+  if (isStaff) return TRANSITIONS[current];
+
+  if (actor.projectRole === "MEMBER") {
     return isOwner && current === "RESOLVED" ? ["CLOSED"] : [];
   }
-  return TRANSITIONS[current];
+
+  // VIEWER, or not a member at all.
+  return [];
 }

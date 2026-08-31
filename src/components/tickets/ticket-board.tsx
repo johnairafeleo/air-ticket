@@ -26,8 +26,9 @@ import { canEditTicketDetails } from "@/lib/auth/permissions";
 import type { BoardData } from "@/lib/tickets/queries";
 import type {
   Category,
-  Profile,
   Project,
+  ProjectMemberWithProfile,
+  TicketActor,
   TicketStatus,
   TicketWithRelations,
 } from "@/types/app";
@@ -54,9 +55,9 @@ export function TicketBoard({
   projectId,
 }: {
   initial: BoardData;
-  actor: Profile;
+  actor: TicketActor;
   /** Passed down so the card modal's controls need no extra fetch. */
-  agents: Profile[];
+  agents: ProjectMemberWithProfile[];
   categories: Category[];
   /** For the per-column "New ticket" dialogs. */
   projects: Project[];
@@ -177,7 +178,11 @@ export function TicketBoard({
               projectId={projectId}
               projects={projects}
               categories={categories}
-              canSchedule={actor.role !== "USER"}
+              canSchedule={
+                actor.isSystemAdmin ||
+                actor.projectRole === "AGENT" ||
+                actor.projectRole === "MANAGER"
+              }
             >
               {column.tickets.map((ticket) => (
                 <TicketCard

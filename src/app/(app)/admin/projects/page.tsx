@@ -23,7 +23,7 @@ import {
   CreateProjectDialog,
   EditProjectDialog,
 } from "@/components/admin/project-dialogs";
-import { requireRole } from "@/lib/auth/require-user";
+import { requireUser } from "@/lib/auth/require-user";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -31,7 +31,9 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminProjectsPage() {
-  await requireRole("ADMIN");
+  // Open to everyone: RLS returns only the projects you belong to, so this is
+  // "your projects" for a normal user and "all projects" for a system admin.
+  await requireUser("/admin/projects");
 
   const supabase = await createClient();
   // Admins see inactive projects too — the RLS policy allows it, and this is
@@ -60,7 +62,7 @@ export default async function AdminProjectsPage() {
     <>
       <PageHeader
         title="Projects"
-        description="Each project has its own ticket numbering."
+        description="Projects you belong to. Each has its own ticket numbering."
         actions={<CreateProjectDialog />}
       />
 
@@ -78,7 +80,8 @@ export default async function AdminProjectsPage() {
         <CardContent>
           {rows.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No projects yet. Create one to start raising tickets.
+              You are not in any project yet. Create one, or ask someone to add
+              you to theirs.
             </p>
           ) : (
             <div className="overflow-x-auto">

@@ -103,6 +103,36 @@ page, because no `token_hash` reaches the handler.
 > Supabase's built-in SMTP is rate limited to a handful of emails per hour. That is fine
 > for development; configure a real SMTP provider before going live.
 
+### Google sign-in
+
+Optional, but the app shows a "Continue with Google" button once it is enabled.
+
+**1. Google Cloud Console** — create an OAuth 2.0 Client ID (type: Web application) at
+<https://console.cloud.google.com/apis/credentials>. Under **Authorised redirect URIs**
+add your Supabase callback, NOT your app's:
+
+```
+https://zbjqsesdfvrjqsuyiogx.supabase.co/auth/v1/callback
+```
+
+This trips people up: Google redirects to Supabase, and Supabase then redirects to the app.
+
+**2. Supabase** — Authentication → Providers → Google → enable, and paste the Client ID and
+Client Secret.
+
+**3. Redirect URLs** — Authentication → URL Configuration must already include
+`http://localhost:3000/**` (set in step 4), which covers `/auth/callback`.
+
+Two callback routes exist and are not interchangeable:
+
+| Route | Flow | Used by |
+| --- | --- | --- |
+| `/auth/callback` | PKCE `?code=` → `exchangeCodeForSession` | Google and any other OAuth provider |
+| `/auth/confirm` | `token_hash` → `verifyOtp` | Emailed signup and password-reset links |
+
+OAuth always returns to the browser that started it, so PKCE is correct there. An emailed
+link may be opened on another device, where PKCE would fail — hence the separate route.
+
 ---
 
 ## 5. Generate database types

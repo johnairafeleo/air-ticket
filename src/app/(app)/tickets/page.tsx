@@ -11,6 +11,7 @@ import { NewTicketDialog } from "@/components/tickets/new-ticket-dialog";
 import { requireUser } from "@/lib/auth/require-user";
 import { listCategories, listTickets } from "@/lib/tickets/queries";
 import { getActiveProject, listProjects } from "@/lib/projects/active";
+import { getTicketActor, isProjectStaff } from "@/lib/projects/access";
 import { NoProjects } from "@/components/projects/no-projects";
 import { ticketFiltersSchema } from "@/lib/validations/ticket";
 
@@ -33,43 +34,45 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
     return (
       <>
         <PageHeader title="Tickets" />
-        <NoProjects isAdmin={profile.role === "ADMIN"} />
+        <NoProjects />
       </>
     );
   }
 
-  const [categories, projects, result] = await Promise.all([
+  const [actor, categories, projects, result] = await Promise.all([
+    getTicketActor(profile, activeProject.id),
     listCategories(),
     listProjects(),
     listTickets(profile, filters, activeProject.id),
   ]);
 
-  const description =
-    profile.role === "USER"
-      ? "Tickets you have raised."
-      : "Tickets assigned to you, plus the unassigned queue.";
+  const staff = isProjectStaff(actor);
+
+  const description = staff
+    ? "Every ticket in this project."
+    : "Tickets you have raised.";
 
   return (
     <>
       <PageHeader
         title={`Tickets · ${activeProject.name}`}
-        description={profile.role === "ADMIN" ? "All tickets." : description}
+        description={description}
         actions={
           <>
             {/* The board route is gated on AGENT, so offering the toggle to a
                 USER would just link them to a redirect. */}
-            {profile.role !== "USER" ? <ViewToggle /> : null}
+            {staff ? <ViewToggle /> : null}
             <NewTicketDialog
               categories={categories}
               projects={projects}
               defaultProjectId={activeProject.id}
-              canSchedule={profile.role !== "USER"}
+              canSchedule={staff}
             />
           </>
         }
       />
 
-      <TicketFilters categories={categories} actor={profile} />
+      <TicketFilters categories={categories} canSeeOthersTickets={staff} />
 
       <Card>
         <CardContent className="p-0">

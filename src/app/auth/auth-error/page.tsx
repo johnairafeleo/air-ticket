@@ -22,6 +22,16 @@ const REASONS: Record<string, { title: string; description: string }> = {
     description:
       "The address is missing information we need. Make sure you opened the full link from the email — some clients truncate long URLs.",
   },
+  cancelled: {
+    title: "Sign-in was cancelled",
+    description:
+      "You dismissed the Google sign-in prompt. Nothing was changed — try again when you are ready.",
+  },
+  oauth_failed: {
+    title: "Google sign-in did not complete",
+    description:
+      "We could not finish signing you in. This is usually a misconfigured redirect URL in Supabase, or a cancelled prompt. Try again, or use your email and password.",
+  },
   expired_link: {
     title: "This link has expired",
     description:

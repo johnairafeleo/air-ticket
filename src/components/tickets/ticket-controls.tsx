@@ -27,7 +27,8 @@ import {
 import {
   TICKET_PRIORITIES,
   type Category,
-  type Profile,
+  type ProjectMemberWithProfile,
+  type TicketActor,
   type TicketWithRelations,
 } from "@/types/app";
 
@@ -49,19 +50,26 @@ export function TicketControls({
   categories,
 }: {
   ticket: TicketWithRelations;
-  actor: Profile;
-  agents: Profile[];
+  actor: TicketActor;
+  /** Agents and managers of THIS project — assignment is project-scoped. */
+  agents: ProjectMemberWithProfile[];
   categories: Category[];
 }) {
   const [pending, startTransition] = useTransition();
 
   const isOwner = ticket.created_by === actor.id;
-  const isStaff = actor.role === "AGENT" || actor.role === "ADMIN";
+  const isStaff =
+    actor.isSystemAdmin ||
+    actor.projectRole === "AGENT" ||
+    actor.projectRole === "MANAGER";
+  const canAssignOthers =
+    actor.isSystemAdmin || actor.projectRole === "MANAGER";
   const statuses = availableStatuses(actor, ticket.status, isOwner);
 
-  // Agents may claim or release, but only admins may hand work to someone else.
-  const assignableAgents =
-    actor.role === "ADMIN" ? agents : agents.filter((a) => a.id === actor.id);
+  // Agents may claim or release; only a manager hands work to someone else.
+  const assignableAgents = canAssignOthers
+    ? agents
+    : agents.filter((a) => a.user_id === actor.id);
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, success: string) {
     startTransition(async () => {
@@ -208,10 +216,12 @@ export function TicketControls({
             <SelectContent>
               <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
               {assignableAgents.map((agent) => (
-                <SelectItem key={agent.id} value={agent.id}>
-                  {agent.id === actor.id
+                <SelectItem key={agent.user_id} value={agent.user_id}>
+                  {agent.user_id === actor.id
                     ? "Me"
-                    : (agent.full_name ?? agent.email)}
+                    : (agent.profile?.full_name ??
+                      agent.profile?.email ??
+                      "Unknown")}
                 </SelectItem>
               ))}
             </SelectContent>

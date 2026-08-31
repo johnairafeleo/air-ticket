@@ -15,6 +15,7 @@ import { NewTicketForm } from "@/components/tickets/new-ticket-form";
 import { requireUser } from "@/lib/auth/require-user";
 import { listCategories } from "@/lib/tickets/queries";
 import { getActiveProjectId, listProjects } from "@/lib/projects/active";
+import { getTicketActor, isProjectStaff } from "@/lib/projects/access";
 import { NoProjects } from "@/components/projects/no-projects";
 
 export const metadata: Metadata = {
@@ -30,12 +31,19 @@ export default async function NewTicketPage() {
     getActiveProjectId(),
   ]);
 
+  // Scheduling is offered per the caller's role in the pre-selected project.
+  // Switching project inside the form does not re-evaluate this, but the insert
+  // guard strips dates from a requester regardless.
+  const actor = activeProjectId
+    ? await getTicketActor(profile, activeProjectId)
+    : null;
+
   // A ticket cannot exist without a project, so there is nothing to show.
   if (projects.length === 0) {
     return (
       <>
         <PageHeader title="New ticket" />
-        <NoProjects isAdmin={profile.role === "ADMIN"} />
+        <NoProjects />
       </>
     );
   }
@@ -68,7 +76,7 @@ export default async function NewTicketPage() {
             categories={categories}
             projects={projects}
             defaultProjectId={activeProjectId ?? undefined}
-            canSchedule={profile.role !== "USER"}
+            canSchedule={actor ? isProjectStaff(actor) : false}
           />
         </CardContent>
       </Card>

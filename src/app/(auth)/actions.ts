@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { absoluteUrl } from "@/lib/env";
+import { isProviderEnabled } from "@/lib/auth/providers";
 import { fail, ok, zodFieldErrors, type ActionResult } from "@/lib/actions/result";
 import {
   forgotPasswordSchema,
@@ -59,6 +60,47 @@ export async function login(
   }
 
   redirect(safeNext(next));
+}
+
+/**
+ * Start Google sign-in.
+ *
+ * Supabase returns a URL to send the browser to; the provider then redirects
+ * back to /auth/callback with a PKCE code. Nothing is signed in until that
+ * exchange succeeds.
+ *
+ * Requires Google to be enabled under Authentication -> Providers in Supabase,
+ * with the callback registered in the Google console. See docs/SETUP.md.
+ */
+export async function signInWithGoogle(next?: string): Promise<ActionResult> {
+  // signInWithOAuth() does not check this: it would happily return a URL to
+  // Supabase's /authorize endpoint, which answers with a raw JSON 400 that the
+  // user sees instead of the app.
+  if (!(await isProviderEnabled("google"))) {
+    return fail(
+      "Google sign-in isn't enabled for this project yet. Use your email and password, or enable Google under Authentication -> Providers in Supabase.",
+    );
+  }
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: absoluteUrl(
+        `/auth/callback?next=${encodeURIComponent(safeNext(next))}`,
+      ),
+    },
+  });
+
+  if (error || !data.url) {
+    return fail(
+      "Google sign-in is unavailable. Check that the provider is enabled in Supabase, or use your email and password.",
+    );
+  }
+
+  // Leaves the app entirely, so nothing after this runs.
+  redirect(data.url);
 }
 
 export async function register(input: unknown): Promise<ActionResult> {

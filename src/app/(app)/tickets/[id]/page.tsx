@@ -21,11 +21,12 @@ import { TicketControls } from "@/components/tickets/ticket-controls";
 import { EditTicketDialog } from "@/components/tickets/edit-ticket-dialog";
 import { canEditTicketDetails } from "@/lib/auth/permissions";
 import { requireUser } from "@/lib/auth/require-user";
+import { getTicket, listCategories } from "@/lib/tickets/queries";
 import {
-  getTicket,
-  listAssignableAgents,
-  listCategories,
-} from "@/lib/tickets/queries";
+  getTicketActor,
+  isProjectStaff,
+  listAssignableMembers,
+} from "@/lib/projects/access";
 
 export async function generateMetadata(
   props: PageProps<"/tickets/[id]">,
@@ -47,15 +48,18 @@ export default async function TicketDetailPage(
   const ticket = await getTicket(id);
   if (!ticket) notFound();
 
-  // Only staff can reassign or recategorise, and RLS would return nothing
-  // useful to a plain USER anyway, so skip both fetches for them.
-  const [agents, categories] =
-    profile.role === "USER"
-      ? [[], []]
-      : await Promise.all([listAssignableAgents(), listCategories()]);
+  // Permissions come from the caller's role in THIS ticket's project.
+  const actor = await getTicketActor(profile, ticket.project_id);
+
+  const [agents, categories] = isProjectStaff(actor)
+    ? await Promise.all([
+        listAssignableMembers(ticket.project_id),
+        listCategories(),
+      ])
+    : [[], []];
 
   const isOwner = ticket.created_by === profile.id;
-  const canEdit = canEditTicketDetails(profile, ticket);
+  const canEdit = canEditTicketDetails(actor, ticket);
 
   return (
     <>
@@ -136,7 +140,7 @@ export default async function TicketDetailPage(
             <CardContent>
               <TicketControls
                 ticket={ticket}
-                actor={profile}
+                actor={actor}
                 agents={agents}
                 categories={categories}
               />

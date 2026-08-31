@@ -19,14 +19,21 @@ export type NavIconName =
   | "board"
   | "users"
   | "projects"
+  | "members"
   | "profile";
 
 export type NavItem = {
   href: string;
   label: string;
   icon: NavIconName;
-  /** Minimum role required to see this item. */
+  /** Minimum GLOBAL role required — really only "system admin or not". */
   minRole: UserRole;
+  /**
+   * Also requires AGENT or MANAGER in the active project. Since 0009 capability
+   * comes from the project role, so gating this on the global role would hide
+   * the board from someone who genuinely works the queue here.
+   */
+  projectStaffOnly?: boolean;
   /** Match child routes too (e.g. /tickets/123 highlights /tickets). */
   prefix?: boolean;
 };
@@ -59,7 +66,16 @@ const SECTIONS: NavSection[] = [
         href: "/tickets/board",
         label: "Board",
         icon: "board",
-        minRole: "AGENT",
+        minRole: "USER",
+        projectStaffOnly: true,
+      },
+      {
+        // Visible to everyone: the page shows who is in the project and
+        // degrades to read-only unless you manage it.
+        href: "/projects/members",
+        label: "Members",
+        icon: "members",
+        minRole: "USER",
       },
     ],
   },
@@ -67,10 +83,12 @@ const SECTIONS: NavSection[] = [
     label: "Administration",
     items: [
       {
+        // Anyone can create and see their own projects; the page is scoped by
+        // RLS rather than by role.
         href: "/admin/projects",
         label: "Projects",
         icon: "projects",
-        minRole: "ADMIN",
+        minRole: "USER",
         prefix: true,
       },
       {
@@ -97,10 +115,18 @@ const SECTIONS: NavSection[] = [
  * rule server-side via `requireRole()`, so removing the nav item is never what
  * keeps anyone out.
  */
-export function navSectionsFor(profile: Profile): NavSection[] {
+export function navSectionsFor(
+  profile: Profile,
+  /** Whether the caller is an agent or manager of the ACTIVE project. */
+  isProjectStaff: boolean,
+): NavSection[] {
   return SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) => hasAtLeastRole(profile, item.minRole)),
+    items: section.items.filter(
+      (item) =>
+        hasAtLeastRole(profile, item.minRole) &&
+        (!item.projectStaffOnly || isProjectStaff),
+    ),
   })).filter((section) => section.items.length > 0);
 }
 

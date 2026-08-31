@@ -9,6 +9,7 @@ import {
   Ticket,
   UserCircle,
   Users,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +32,7 @@ const ICONS: Record<NavIconName, LucideIcon> = {
   board: Columns3,
   users: Users,
   projects: FolderKanban,
+  members: UsersRound,
   profile: UserCircle,
 };
 

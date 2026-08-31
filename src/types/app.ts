@@ -24,6 +24,36 @@ export type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
 export type TicketInsert = Database["public"]["Tables"]["tickets"]["Insert"];
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
 export type Project = Database["public"]["Tables"]["projects"]["Row"];
+export type ProjectRole = Database["public"]["Enums"]["project_role"];
+export type ProjectMember =
+  Database["public"]["Tables"]["project_members"]["Row"];
+
+export const PROJECT_ROLES = [
+  "VIEWER",
+  "MEMBER",
+  "AGENT",
+  "MANAGER",
+] as const satisfies readonly ProjectRole[];
+
+/** A project member joined with the profile shown alongside them. */
+export type ProjectMemberWithProfile = ProjectMember & {
+  profile: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;
+};
+
+/**
+ * Who is acting, within one project.
+ *
+ * Ticket permissions depend on the project role, not the global one, so
+ * components take this rather than a bare Profile. Computed once on the server
+ * and passed down.
+ */
+export type TicketActor = {
+  id: string;
+  /** Global ADMIN: superuser across every project. */
+  isSystemAdmin: boolean;
+  /** Null when not a member — only reachable as a system admin. */
+  projectRole: ProjectRole | null;
+};
 
 export const TICKET_STATUSES = [
   "OPEN",

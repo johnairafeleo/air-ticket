@@ -1,4 +1,4 @@
-import type { Profile, Ticket, UserRole } from "@/types/app";
+import type { Profile, Ticket, TicketActor, UserRole } from "@/types/app";
 
 /**
  * Pure permission predicates.
@@ -77,27 +77,27 @@ export function canViewAllTickets(profile: Profile): boolean {
 /**
  * Whether `actor` may edit a ticket's title and description.
  *
- * Mirrors the USER branch of `guard_ticket_change()`:
+ * Mirrors `guard_ticket_change()`, which since 0009 keys off the project role:
  *
- *   ADMIN  always.
- *   AGENT  when the ticket is theirs or unassigned — the trigger rejects
- *          touching another agent's ticket, and RLS hides it anyway.
- *   USER   only their own, and only while still OPEN. Once work has started the
- *          wording is part of the record.
+ *   system ADMIN     always.
+ *   AGENT / MANAGER  any ticket in the project.
+ *   MEMBER           only their own, and only while still OPEN. Once work has
+ *                    started, the wording is part of the record.
+ *   VIEWER           never.
  *
  * The database enforces all of this regardless; this only decides whether to
  * offer the button.
  */
 export function canEditTicketDetails(
-  actor: Profile,
-  ticket: Pick<Ticket, "created_by" | "assigned_to" | "status">,
+  actor: TicketActor,
+  ticket: Pick<Ticket, "created_by" | "status">,
 ): boolean {
-  if (!actor.is_active) return false;
-  if (actor.role === "ADMIN") return true;
-
-  if (actor.role === "AGENT") {
-    return ticket.assigned_to === null || ticket.assigned_to === actor.id;
+  if (actor.isSystemAdmin) return true;
+  if (actor.projectRole === "AGENT" || actor.projectRole === "MANAGER") {
+    return true;
   }
-
-  return ticket.created_by === actor.id && ticket.status === "OPEN";
+  if (actor.projectRole === "MEMBER") {
+    return ticket.created_by === actor.id && ticket.status === "OPEN";
+  }
+  return false;
 }

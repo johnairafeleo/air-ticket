@@ -33,7 +33,12 @@ import {
   type UpdateTicketDetailsInput,
 } from "@/lib/validations/ticket";
 import { initialsOf, displayName } from "@/lib/users";
-import type { Category, Profile, TicketWithRelations } from "@/types/app";
+import type {
+  Category,
+  ProjectMemberWithProfile,
+  TicketActor,
+  TicketWithRelations,
+} from "@/types/app";
 
 /**
  * Full ticket in a modal, opened from a board card.
@@ -53,8 +58,8 @@ export function TicketDetailDialog({
   onOpenChange,
 }: {
   ticket: TicketWithRelations;
-  actor: Profile;
-  agents: Profile[];
+  actor: TicketActor;
+  agents: ProjectMemberWithProfile[];
   categories: Category[];
   canEdit: boolean;
   open: boolean;

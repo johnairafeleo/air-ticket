@@ -51,12 +51,20 @@ export const getSession = cache(async (): Promise<Session | null> => {
     .maybeSingle();
 
   if (!profile) {
-    // Authenticated but no profile row. Almost always means the migration has
-    // not been applied, so handle_new_user() never created one. Silence here
-    // turns into a mystifying redirect loop, so say so loudly on the server.
+    // Authenticated, but no profile came back. Two different causes, and the
+    // message names both because they need opposite fixes:
+    //
+    //   * the row genuinely does not exist — handle_new_user() never ran, so
+    //     0001 was not applied; or
+    //   * the row exists but the profiles_select policy refused the read, which
+    //     is what a mid-migration policy change looks like.
+    //
+    // Silence here becomes a mystifying redirect loop, so say it loudly.
     console.error(
-      `[auth] No profiles row for authenticated user ${user.id} (${user.email}). ` +
-        "Has supabase/migrations/0001_init_auth_profiles.sql been applied?",
+      `[auth] Could not load a profile for authenticated user ${user.id} (${user.email}). ` +
+        "Either no profiles row exists (has 0001 been applied?), or the " +
+        "profiles_select policy is refusing the read — check with: " +
+        `select * from public.profiles where id = '${user.id}';`,
     );
     return null;
   }

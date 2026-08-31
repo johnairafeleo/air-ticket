@@ -56,7 +56,7 @@ export default async function DashboardPage() {
     return (
       <>
         <PageHeader title={`Welcome back, ${profile.full_name?.split(" ")[0] ?? "there"}`} />
-        <NoProjects isAdmin={profile.role === "ADMIN"} />
+        <NoProjects />
       </>
     );
   }

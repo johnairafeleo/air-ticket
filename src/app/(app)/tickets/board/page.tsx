@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { TicketBoard } from "@/components/tickets/ticket-board";
 import { ViewToggle } from "@/components/tickets/view-toggle";
 import { NewTicketDialog } from "@/components/tickets/new-ticket-dialog";
-import { requireRole } from "@/lib/auth/require-user";
+import { requireUser } from "@/lib/auth/require-user";
+import { listBoardTickets, listCategories } from "@/lib/tickets/queries";
 import {
-  listAssignableAgents,
-  listBoardTickets,
-  listCategories,
-} from "@/lib/tickets/queries";
+  getTicketActor,
+  isProjectStaff,
+  listAssignableMembers,
+} from "@/lib/projects/access";
 import { getActiveProject, listProjects } from "@/lib/projects/active";
 import { NoProjects } from "@/components/projects/no-projects";
 
@@ -18,9 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TicketBoardPage() {
-  // The real gate. A USER reaching this URL directly is redirected server-side,
-  // before anything renders — the hidden nav item is not the protection.
-  const { profile } = await requireRole("AGENT");
+  const { profile } = await requireUser("/tickets/board");
 
   const activeProject = await getActiveProject();
 
@@ -28,17 +28,25 @@ export default async function TicketBoardPage() {
     return (
       <>
         <PageHeader title="Board" />
-        <NoProjects isAdmin={profile.role === "ADMIN"} />
+        <NoProjects />
       </>
     );
   }
 
-  const [board, agents, categories, projects] = await Promise.all([
+  const [actor, board, agents, categories, projects] = await Promise.all([
+    getTicketActor(profile, activeProject.id),
     listBoardTickets(activeProject.id),
-    listAssignableAgents(),
+    listAssignableMembers(activeProject.id),
     listCategories(),
     listProjects(),
   ]);
+
+  // The real gate, now on the PROJECT role: someone who only raises tickets
+  // here has at most one legal drag, so the board is not for them. Checked
+  // server-side — the hidden nav item is not the protection.
+  if (!isProjectStaff(actor)) {
+    redirect("/tickets");
+  }
 
   return (
     <>
@@ -52,7 +60,7 @@ export default async function TicketBoardPage() {
               categories={categories}
               projects={projects}
               defaultProjectId={activeProject.id}
-              canSchedule={profile.role !== "USER"}
+              canSchedule={isProjectStaff(actor)}
             />
           </>
         }
@@ -60,7 +68,7 @@ export default async function TicketBoardPage() {
 
       <TicketBoard
         initial={board}
-        actor={profile}
+        actor={actor}
         agents={agents}
         categories={categories}
         projects={projects}
