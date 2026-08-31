@@ -10,6 +10,8 @@ import { TicketTable } from "@/components/tickets/ticket-table";
 import { ViewToggle } from "@/components/tickets/view-toggle";
 import { requireUser } from "@/lib/auth/require-user";
 import { listCategories, listTickets } from "@/lib/tickets/queries";
+import { getActiveProject } from "@/lib/projects/active";
+import { NoProjects } from "@/components/projects/no-projects";
 import { ticketFiltersSchema } from "@/lib/validations/ticket";
 
 export const metadata: Metadata = {
@@ -25,9 +27,20 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
   const parsed = ticketFiltersSchema.safeParse(searchParams);
   const filters = parsed.success ? parsed.data : ticketFiltersSchema.parse({});
 
+  const activeProject = await getActiveProject();
+
+  if (!activeProject) {
+    return (
+      <>
+        <PageHeader title="Tickets" />
+        <NoProjects isAdmin={profile.role === "ADMIN"} />
+      </>
+    );
+  }
+
   const [categories, result] = await Promise.all([
     listCategories(),
-    listTickets(profile, filters),
+    listTickets(profile, filters, activeProject.id),
   ]);
 
   const description =
@@ -38,7 +51,7 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
   return (
     <>
       <PageHeader
-        title="Tickets"
+        title={`Tickets · ${activeProject.name}`}
         description={profile.role === "ADMIN" ? "All tickets." : description}
         actions={
           <>

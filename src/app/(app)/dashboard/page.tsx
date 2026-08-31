@@ -28,6 +28,8 @@ import { requireUser } from "@/lib/auth/require-user";
 import { getDashboardStats } from "@/lib/tickets/dashboard";
 import { listTickets } from "@/lib/tickets/queries";
 import { ticketFiltersSchema } from "@/lib/validations/ticket";
+import { getActiveProject } from "@/lib/projects/active";
+import { NoProjects } from "@/components/projects/no-projects";
 import {
   ACTIVE_STATUSES_PARAM,
   NOT_CLOSED_PARAM,
@@ -45,11 +47,28 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   const { profile } = await requireUser("/dashboard");
 
+  const activeProject = await getActiveProject();
+
+  // Nothing is scoped until a project exists, so say so rather than render a
+  // dashboard of zeroes that looks like a bug.
+  if (!activeProject) {
+    return (
+      <>
+        <PageHeader title={`Welcome back, ${profile.full_name?.split(" ")[0] ?? "there"}`} />
+        <NoProjects isAdmin={profile.role === "ADMIN"} />
+      </>
+    );
+  }
+
   const [stats, recent] = await Promise.all([
-    getDashboardStats(),
+    getDashboardStats(activeProject.id),
     // Parse rather than hand-build, so this picks up the schema's defaults and
     // cannot drift from what the list page passes.
-    listTickets(profile, ticketFiltersSchema.parse({ scope: "all" })),
+    listTickets(
+      profile,
+      ticketFiltersSchema.parse({ scope: "all" }),
+      activeProject.id,
+    ),
   ]);
 
   const isStaff = profile.role !== "USER";
@@ -59,11 +78,11 @@ export default async function DashboardPage() {
     <>
       <PageHeader
         title={`Welcome back, ${firstName}`}
-        description={
+        description={`${activeProject.name} · ${
           isStaff
-            ? "Everything on your desk right now."
-            : "Your support requests at a glance."
-        }
+            ? "everything on your desk right now"
+            : "your support requests at a glance"
+        }`}
         actions={
           <>
             <RoleBadge role={profile.role} />

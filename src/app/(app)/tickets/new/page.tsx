@@ -14,14 +14,31 @@ import { PageHeader } from "@/components/layout/page-header";
 import { NewTicketForm } from "@/components/tickets/new-ticket-form";
 import { requireUser } from "@/lib/auth/require-user";
 import { listCategories } from "@/lib/tickets/queries";
+import { getActiveProjectId, listProjects } from "@/lib/projects/active";
+import { NoProjects } from "@/components/projects/no-projects";
 
 export const metadata: Metadata = {
   title: "New ticket",
 };
 
 export default async function NewTicketPage() {
-  await requireUser("/tickets/new");
-  const categories = await listCategories();
+  const { profile } = await requireUser("/tickets/new");
+
+  const [categories, projects, activeProjectId] = await Promise.all([
+    listCategories(),
+    listProjects(),
+    getActiveProjectId(),
+  ]);
+
+  // A ticket cannot exist without a project, so there is nothing to show.
+  if (projects.length === 0) {
+    return (
+      <>
+        <PageHeader title="New ticket" />
+        <NoProjects isAdmin={profile.role === "ADMIN"} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -47,7 +64,11 @@ export default async function NewTicketPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NewTicketForm categories={categories} />
+          <NewTicketForm
+            categories={categories}
+            projects={projects}
+            defaultProjectId={activeProjectId ?? undefined}
+          />
         </CardContent>
       </Card>
     </>

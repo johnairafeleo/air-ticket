@@ -26,6 +26,7 @@ export const TICKETS_PER_PAGE = 20;
 /** The joined shape every list and detail view renders. */
 const TICKET_SELECT = `
   *,
+  project:projects ( id, key, name ),
   category:categories ( id, name ),
   creator:profiles!tickets_created_by_fkey ( id, full_name, email, avatar_url ),
   assignee:profiles!tickets_assigned_to_fkey ( id, full_name, email, avatar_url )
@@ -41,6 +42,8 @@ export type TicketListResult = {
 export async function listTickets(
   actor: Profile,
   filters: TicketFilters,
+  /** Scope to one project. Null only when no project exists yet. */
+  projectId?: string | null,
 ): Promise<TicketListResult> {
   const supabase = await createClient();
   const from = (filters.page - 1) * TICKETS_PER_PAGE;
@@ -53,6 +56,7 @@ export async function listTickets(
 
   // Status and priority are lists so a filter can express "high or urgent" and
   // "not closed" — the combinations the dashboard cards count.
+  if (projectId) query = query.eq("project_id", projectId);
   if (filters.status.length > 0) query = query.in("status", filters.status);
   if (filters.priority.length > 0) query = query.in("priority", filters.priority);
   if (filters.categoryId) query = query.eq("category_id", filters.categoryId);
@@ -134,15 +138,21 @@ export type BoardData = Record<TicketStatus, BoardColumnData>;
  * Runs under RLS like every other read, so an agent's board can only ever
  * contain tickets assigned to them or sitting unassigned.
  */
-export async function listBoardTickets(): Promise<BoardData> {
+export async function listBoardTickets(
+  projectId?: string | null,
+): Promise<BoardData> {
   const supabase = await createClient();
 
   const columns = await Promise.all(
     BOARD_COLUMNS.map(async (status) => {
-      const { data, error, count } = await supabase
+      let query = supabase
         .from("tickets")
         .select(TICKET_SELECT, { count: "exact" })
-        .eq("status", status)
+        .eq("status", status);
+
+      if (projectId) query = query.eq("project_id", projectId);
+
+      const { data, error, count } = await query
         // Most urgent first, then most recently touched — the order an agent
         // would want to work the column in.
         .order("priority", { ascending: false })

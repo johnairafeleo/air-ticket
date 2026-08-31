@@ -51,6 +51,9 @@ function describeTicketError(message: string): string {
   if (message.includes("Only an administrator can assign")) {
     return "Only an administrator can assign a ticket to someone else.";
   }
+  if (message.includes("must belong to a project")) {
+    return "Choose a project for this ticket.";
+  }
   if (message.includes("tickets_date_range")) {
     return "The end date cannot be before the start date.";
   }
@@ -81,10 +84,13 @@ export async function createTicket(input: unknown): Promise<ActionResult> {
   const { data, error } = await supabase
     .from("tickets")
     .insert({
+      project_id: parsed.data.projectId,
       title: parsed.data.title,
       description: parsed.data.description,
       category_id: parsed.data.categoryId,
       priority: parsed.data.priority,
+      // ticket_number is deliberately absent: guard_ticket_insert() derives it
+      // from the project key and that project's own counter.
       // The insert guard overwrites this with auth.uid() anyway; sending it
       // keeps the NOT NULL column satisfied and the intent explicit.
       created_by: profile.id,

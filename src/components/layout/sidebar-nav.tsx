@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Columns3,
+  FolderKanban,
   LayoutDashboard,
   Ticket,
   UserCircle,
@@ -29,6 +30,7 @@ const ICONS: Record<NavIconName, LucideIcon> = {
   tickets: Ticket,
   board: Columns3,
   users: Users,
+  projects: FolderKanban,
   profile: UserCircle,
 };
 

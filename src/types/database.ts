@@ -92,12 +92,46 @@ export type Database = {
         };
         Relationships: [];
       };
+      projects: {
+        Row: {
+          id: string;
+          key: string;
+          name: string;
+          description: string | null;
+          is_active: boolean;
+          ticket_seq: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          key: string;
+          name: string;
+          description?: string | null;
+          is_active?: boolean;
+          ticket_seq?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          key?: string;
+          name?: string;
+          description?: string | null;
+          is_active?: boolean;
+          ticket_seq?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       tickets: {
         Row: {
           id: string;
           ticket_number: string;
           title: string;
           description: string;
+          project_id: string;
           category_id: string | null;
           priority: Database["public"]["Enums"]["ticket_priority"];
           status: Database["public"]["Enums"]["ticket_status"];
@@ -115,6 +149,7 @@ export type Database = {
           ticket_number?: string;
           title: string;
           description: string;
+          project_id: string;
           category_id?: string | null;
           priority?: Database["public"]["Enums"]["ticket_priority"];
           status?: Database["public"]["Enums"]["ticket_status"];
@@ -132,6 +167,7 @@ export type Database = {
           ticket_number?: string;
           title?: string;
           description?: string;
+          project_id?: string;
           category_id?: string | null;
           priority?: Database["public"]["Enums"]["ticket_priority"];
           status?: Database["public"]["Enums"]["ticket_status"];
@@ -145,6 +181,13 @@ export type Database = {
           end_date?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "tickets_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "tickets_category_id_fkey";
             columns: ["category_id"];
@@ -193,7 +236,7 @@ export type Database = {
         Returns: boolean;
       };
       dashboard_stats: {
-        Args: Record<PropertyKey, never>;
+        Args: { p_project_id: string };
         Returns: Json;
       };
     };

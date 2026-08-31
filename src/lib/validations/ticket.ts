@@ -10,6 +10,9 @@ import { TICKET_PRIORITIES, TICKET_STATUSES } from "@/types/app";
  */
 
 export const createTicketSchema = z.object({
+  // Required: a ticket's number is derived from its project's key, so there is
+  // no meaningful "no project" state.
+  projectId: z.uuid({ error: "Choose a project." }),
   title: z
     .string()
     .trim()

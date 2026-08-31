@@ -56,9 +56,19 @@ const EMPTY: DashboardStats = {
   workload: [],
 };
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+/**
+ * Aggregates for one project.
+ *
+ * The project is required: every other figure on the dashboard is scoped, so
+ * unscoped totals would contradict them.
+ */
+export async function getDashboardStats(
+  projectId: string,
+): Promise<DashboardStats> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("dashboard_stats");
+  const { data, error } = await supabase.rpc("dashboard_stats", {
+    p_project_id: projectId,
+  });
 
   // A dashboard is not worth an error boundary — zeroes read as "nothing yet",
   // which is the same thing a brand-new account would legitimately see.

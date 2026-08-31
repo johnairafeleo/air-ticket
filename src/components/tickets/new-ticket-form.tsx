@@ -30,7 +30,7 @@ import {
   type CreateTicketInput,
   type CreateTicketValues,
 } from "@/lib/validations/ticket";
-import { TICKET_PRIORITIES, type Category } from "@/types/app";
+import { TICKET_PRIORITIES, type Category, type Project } from "@/types/app";
 
 const PRIORITY_HINTS: Record<string, string> = {
   LOW: "Minor inconvenience, no deadline.",
@@ -39,10 +39,20 @@ const PRIORITY_HINTS: Record<string, string> = {
   URGENT: "Critical outage or a whole team is blocked.",
 };
 
-export function NewTicketForm({ categories }: { categories: Category[] }) {
+export function NewTicketForm({
+  categories,
+  projects,
+  defaultProjectId,
+}: {
+  categories: Category[];
+  projects: Project[];
+  /** The switcher's current project, so the common case needs no extra click. */
+  defaultProjectId?: string;
+}) {
   const form = useForm<CreateTicketInput, unknown, CreateTicketValues>({
     resolver: zodResolver(createTicketSchema),
     defaultValues: {
+      projectId: defaultProjectId ?? projects[0]?.id ?? "",
       title: "",
       description: "",
       categoryId: "",
@@ -70,6 +80,37 @@ export function NewTicketForm({ categories }: { categories: Category[] }) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
       <FieldGroup>
+        <Controller
+          control={control}
+          name="projectId"
+          render={({ field, fieldState }) => (
+            <Field data-invalid={Boolean(fieldState.error)}>
+              <FieldLabel htmlFor="projectId">Project</FieldLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="projectId" className="w-full">
+                  <SelectValue placeholder="Choose a project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                      <span className="ml-2 font-mono text-xs text-muted-foreground">
+                        {project.key}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                Determines the ticket number, and cannot be changed later.
+              </FieldDescription>
+              <FieldError
+                errors={fieldState.error ? [fieldState.error] : undefined}
+              />
+            </Field>
+          )}
+        />
+
         <TextField
           control={control}
           name="title"

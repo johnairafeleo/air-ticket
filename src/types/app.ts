@@ -23,6 +23,7 @@ export type TicketPriority = Database["public"]["Enums"]["ticket_priority"];
 export type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
 export type TicketInsert = Database["public"]["Tables"]["tickets"]["Insert"];
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
+export type Project = Database["public"]["Tables"]["projects"]["Row"];
 
 export const TICKET_STATUSES = [
   "OPEN",
@@ -41,6 +42,7 @@ export const TICKET_PRIORITIES = [
 
 /** A ticket joined with the names it is displayed alongside. */
 export type TicketWithRelations = Ticket & {
+  project: Pick<Project, "id" | "key" | "name"> | null;
   category: Pick<Category, "id" | "name"> | null;
   creator: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;
   assignee: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;

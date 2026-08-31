@@ -18,6 +18,7 @@ export type NavIconName =
   | "tickets"
   | "board"
   | "users"
+  | "projects"
   | "profile";
 
 export type NavItem = {
@@ -65,6 +66,13 @@ const SECTIONS: NavSection[] = [
   {
     label: "Administration",
     items: [
+      {
+        href: "/admin/projects",
+        label: "Projects",
+        icon: "projects",
+        minRole: "ADMIN",
+        prefix: true,
+      },
       {
         href: "/admin/users",
         label: "Users",
