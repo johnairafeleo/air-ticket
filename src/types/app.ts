@@ -14,3 +14,34 @@ export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"];
 
 export const USER_ROLES = ["USER", "AGENT", "ADMIN"] as const satisfies readonly UserRole[];
+
+// --- Phase 2: tickets --------------------------------------------------------
+
+export type TicketStatus = Database["public"]["Enums"]["ticket_status"];
+export type TicketPriority = Database["public"]["Enums"]["ticket_priority"];
+
+export type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
+export type TicketInsert = Database["public"]["Tables"]["tickets"]["Insert"];
+export type Category = Database["public"]["Tables"]["categories"]["Row"];
+
+export const TICKET_STATUSES = [
+  "OPEN",
+  "IN_PROGRESS",
+  "PENDING",
+  "RESOLVED",
+  "CLOSED",
+] as const satisfies readonly TicketStatus[];
+
+export const TICKET_PRIORITIES = [
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "URGENT",
+] as const satisfies readonly TicketPriority[];
+
+/** A ticket joined with the names it is displayed alongside. */
+export type TicketWithRelations = Ticket & {
+  category: Pick<Category, "id" | "name"> | null;
+  creator: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;
+  assignee: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;
+};

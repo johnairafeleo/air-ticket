@@ -13,15 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { initialsOf } from "@/lib/users";
 import type { Profile } from "@/types/app";
-
-export function initialsOf(profile: Pick<Profile, "full_name" | "email">) {
-  const source = profile.full_name?.trim() || profile.email;
-  const parts = source.split(/[\s@._-]+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? "?";
-  const second = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
-  return (first + second).toUpperCase();
-}
 
 export function UserMenu({ profile }: { profile: Profile }) {
   return (

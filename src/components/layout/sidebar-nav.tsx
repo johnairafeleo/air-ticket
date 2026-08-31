@@ -2,9 +2,35 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Columns3,
+  LayoutDashboard,
+  Ticket,
+  UserCircle,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { isNavItemActive, type NavSection } from "@/components/layout/nav-items";
+import {
+  activeHref,
+  type NavIconName,
+  type NavSection,
+} from "@/components/layout/nav-items";
+
+/**
+ * Icon names to components.
+ *
+ * This lives on the client because component references cannot cross the
+ * Server -> Client boundary; the nav data carries a plain string instead.
+ */
+const ICONS: Record<NavIconName, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  tickets: Ticket,
+  board: Columns3,
+  users: Users,
+  profile: UserCircle,
+};
 
 /**
  * The navigation list itself, shared by the desktop sidebar and the mobile
@@ -18,6 +44,8 @@ export function SidebarNav({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  // Resolved once for the whole nav so only the most specific route lights up.
+  const current = activeHref(sections, pathname);
 
   return (
     <nav className="flex flex-1 flex-col gap-6 px-3 py-4" aria-label="Main">
@@ -30,8 +58,8 @@ export function SidebarNav({
           ) : null}
 
           {section.items.map((item) => {
-            const active = isNavItemActive(item, pathname);
-            const Icon = item.icon;
+            const active = item.href === current;
+            const Icon = ICONS[item.icon];
 
             return (
               <Link

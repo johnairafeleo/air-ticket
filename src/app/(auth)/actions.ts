@@ -93,6 +93,13 @@ export async function register(input: unknown): Promise<ActionResult> {
     return ok();
   }
 
+  // When "Confirm email" is disabled in Supabase, signUp returns a live session
+  // and the user is already signed in. Telling them to check their inbox would
+  // be wrong, and no email is ever sent. Send them straight into the app.
+  if (data.session) {
+    redirect("/dashboard");
+  }
+
   return ok();
 }
 

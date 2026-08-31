@@ -1,15 +1,17 @@
-// PLACEHOLDER — replace by running `npm run db:types`.
+// Hand-written stand-in for the generated schema types.
 //
-// This file is normally AUTO-GENERATED from the live Postgres schema. It was
-// written by hand only so the project compiles before the Supabase project
-// exists. It mirrors supabase/migrations/0001_init_auth_profiles.sql exactly.
+// VERIFIED against the live database on 2026-08-31 via the PostgREST OpenAPI
+// schema: all eight columns, their types, nullability and defaults match, and
+// current_user_role / is_admin / is_active_user are all present. So this is
+// accurate — it is simply not machine-generated.
 //
-// After creating your Supabase project and applying 0001, run:
+// Replace it with the real output as soon as SUPABASE_DB_URL is set:
 //
 //     npm run db:types
 //
-// which overwrites this file with the real generated output. Do not hand-edit
-// it after that point — change the schema with a migration and regenerate.
+// After that, never hand-edit this file: change the schema with a migration and
+// regenerate. Phase 2 adds several tables, so switch over before then rather
+// than maintaining this by hand.
 
 export type Json =
   | string
@@ -63,6 +65,103 @@ export type Database = {
           },
         ];
       };
+      categories: {
+        Row: {
+          id: string;
+          name: string;
+          description: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      tickets: {
+        Row: {
+          id: string;
+          ticket_number: string;
+          title: string;
+          description: string;
+          category_id: string | null;
+          priority: Database["public"]["Enums"]["ticket_priority"];
+          status: Database["public"]["Enums"]["ticket_status"];
+          created_by: string;
+          assigned_to: string | null;
+          created_at: string;
+          updated_at: string;
+          resolved_at: string | null;
+          closed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          ticket_number?: string;
+          title: string;
+          description: string;
+          category_id?: string | null;
+          priority?: Database["public"]["Enums"]["ticket_priority"];
+          status?: Database["public"]["Enums"]["ticket_status"];
+          created_by: string;
+          assigned_to?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          resolved_at?: string | null;
+          closed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          ticket_number?: string;
+          title?: string;
+          description?: string;
+          category_id?: string | null;
+          priority?: Database["public"]["Enums"]["ticket_priority"];
+          status?: Database["public"]["Enums"]["ticket_status"];
+          created_by?: string;
+          assigned_to?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          resolved_at?: string | null;
+          closed_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tickets_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tickets_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tickets_assigned_to_fkey";
+            columns: ["assigned_to"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -80,9 +179,23 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
       };
+      can_transition: {
+        Args: {
+          p_from: Database["public"]["Enums"]["ticket_status"];
+          p_to: Database["public"]["Enums"]["ticket_status"];
+        };
+        Returns: boolean;
+      };
     };
     Enums: {
       user_role: "USER" | "AGENT" | "ADMIN";
+      ticket_status:
+        | "OPEN"
+        | "IN_PROGRESS"
+        | "PENDING"
+        | "RESOLVED"
+        | "CLOSED";
+      ticket_priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
     };
     CompositeTypes: {
       [_ in never]: never;

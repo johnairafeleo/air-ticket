@@ -4,8 +4,14 @@
  *
  *   npm run db:types
  *
- * Uses the Supabase CLI's --db-url mode, which needs neither Docker nor a CLI
- * login — just SUPABASE_DB_URL in .env.local.
+ * Uses the Supabase CLI's --db-url mode, which needs SUPABASE_DB_URL in
+ * .env.local AND a running Docker daemon: the CLI runs pg_meta in a container
+ * to introspect the schema. (An earlier note in docs/SETUP.md claimed --db-url
+ * avoided Docker. That was wrong — verified against CLI 2.116.)
+ *
+ * Docker-free alternative: `supabase login` then
+ *   supabase gen types typescript --project-id <ref>
+ * which goes through the Management API instead.
  *
  * Run this after every migration. `npm run typecheck` will start failing if the
  * committed types no longer match the code, which is the intended signal.
@@ -75,7 +81,26 @@ if (result.error) {
 }
 
 if (result.status !== 0) {
-  console.error(result.stderr || "supabase gen types failed.");
+  const err = (result.stderr || "") + (result.stdout || "");
+
+  if (/docker/i.test(err)) {
+    console.error(
+      [
+        "The Supabase CLI could not reach Docker.",
+        "",
+        "`gen types --db-url` runs pg_meta in a container, so the Docker daemon",
+        "must be running. Either:",
+        "",
+        "  1. Start Docker Desktop, then re-run `npm run db:types`; or",
+        "  2. Skip Docker entirely:",
+        "       npx supabase login",
+        "       npx supabase gen types typescript --project-id zbjqsesdfvrjqsuyiogx > src/types/database.ts",
+      ].join("\n"),
+    );
+    process.exit(1);
+  }
+
+  console.error(err || "supabase gen types failed.");
   process.exit(result.status ?? 1);
 }
 

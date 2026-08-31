@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PageHeader } from "@/components/layout/page-header";
 import { RoleBadge } from "@/components/layout/role-badge";
-import { initialsOf } from "@/components/layout/user-menu";
+import { initialsOf } from "@/lib/users";
 import { UserRowActions } from "@/components/admin/user-row-actions";
 import { requireRole } from "@/lib/auth/require-user";
 import { createClient } from "@/lib/supabase/server";

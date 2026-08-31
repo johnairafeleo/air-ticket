@@ -111,8 +111,19 @@ page, because no `token_hash` reaches the handler.
 npm run db:types
 ```
 
-Writes `src/types/database.ts` from the live schema. It needs neither Docker nor a CLI
-login — only `SUPABASE_DB_URL`.
+Writes `src/types/database.ts` from the live schema.
+
+**This needs a running Docker daemon.** The CLI runs pg_meta in a container to introspect
+the schema, even with `--db-url`. (An earlier version of this document claimed otherwise;
+that was wrong, verified against CLI 2.116.) To avoid Docker, authenticate instead:
+
+```bash
+npx supabase login
+npx supabase gen types typescript --project-id zbjqsesdfvrjqsuyiogx > src/types/database.ts
+```
+
+Until either route is set up, `src/types/database.ts` is maintained by hand and verified
+against the live schema with a direct SQL introspection query.
 
 **Re-run this after every migration and commit the result.** The file is generated; never
 edit it by hand. `src/types/app.ts` derives its aliases from it, so a schema change that

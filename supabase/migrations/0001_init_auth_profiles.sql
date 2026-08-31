@@ -4,6 +4,10 @@
 -- Phase 1 foundation: user profiles, roles, and the authorization primitives
 -- every later migration builds on.
 --
+-- This script is IDEMPOTENT — safe to run repeatedly. It gets pasted into the
+-- Supabase SQL Editor by hand, where ending up with a partially-applied run is
+-- easy, so every object is created conditionally or replaced outright.
+--
 -- Design notes that are easy to get wrong and expensive to discover later:
 --
 --   * RLS recursion. A policy on `profiles` that SELECTs `profiles` to find the
@@ -25,9 +29,23 @@ create extension if not exists citext with schema extensions;
 
 -- =============================================================================
 -- Enum
+--
+-- Postgres has no `create type if not exists`, hence the guard block.
 -- =============================================================================
 
-create type public.user_role as enum ('USER', 'AGENT', 'ADMIN');
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_type t
+    join pg_namespace n on n.oid = t.typnamespace
+    where t.typname = 'user_role'
+      and n.nspname = 'public'
+  ) then
+    create type public.user_role as enum ('USER', 'AGENT', 'ADMIN');
+  end if;
+end
+$$;
 
 
 -- =============================================================================
@@ -38,10 +56,10 @@ create type public.user_role as enum ('USER', 'AGENT', 'ADMIN');
 -- `email` is duplicated from auth.users on purpose: the admin user list and
 -- every future ticket query can then join a single table instead of mixing in
 -- service-role calls to the auth schema. handle_new_user() is the only writer,
--- and guard_profile_role_change() prevents it drifting.
+-- and guard_profile_email_change() keeps it from drifting.
 -- =============================================================================
 
-create table public.profiles (
+create table if not exists public.profiles (
   id          uuid primary key references auth.users (id) on delete cascade,
   email       extensions.citext not null,
   full_name   text,
@@ -62,14 +80,15 @@ create table public.profiles (
 comment on table public.profiles is
   'Application-level user record. Mirrors auth.users, adds role and activation state.';
 
-create unique index profiles_email_key on public.profiles (email);
-create index profiles_role_idx on public.profiles (role);
+create unique index if not exists profiles_email_key on public.profiles (email);
+create index if not exists profiles_role_idx on public.profiles (role);
 
 -- Partial index: we only ever look for the small set of deactivated accounts.
-create index profiles_inactive_idx on public.profiles (id) where is_active = false;
+create index if not exists profiles_inactive_idx on public.profiles (id)
+  where is_active = false;
 
 -- Supports the "is there another active admin?" lockout check below.
-create index profiles_active_admins_idx on public.profiles (id)
+create index if not exists profiles_active_admins_idx on public.profiles (id)
   where role = 'ADMIN' and is_active = true;
 
 
@@ -89,6 +108,7 @@ begin
 end;
 $$;
 
+drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
   before update on public.profiles
   for each row
@@ -191,6 +211,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row
@@ -262,6 +283,7 @@ begin
 end;
 $$;
 
+drop trigger if exists profiles_guard_role_change on public.profiles;
 create trigger profiles_guard_role_change
   before update on public.profiles
   for each row
@@ -295,6 +317,7 @@ begin
 end;
 $$;
 
+drop trigger if exists profiles_guard_email_change on public.profiles;
 create trigger profiles_guard_email_change
   before update on public.profiles
   for each row
@@ -316,6 +339,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_auth_user_email_updated on auth.users;
 create trigger on_auth_user_email_updated
   after update of email on auth.users
   for each row
@@ -335,6 +359,7 @@ alter table public.profiles enable row level security;
 
 -- SELECT: yourself; admins see everyone; agents see everyone so they can be
 -- assigned work and can identify requesters.
+drop policy if exists profiles_select on public.profiles;
 create policy profiles_select
   on public.profiles
   for select
@@ -349,6 +374,7 @@ create policy profiles_select
 
 -- UPDATE: your own row, or any row if you are an admin.
 -- The role and is_active columns are protected by guard_profile_role_change().
+drop policy if exists profiles_update on public.profiles;
 create policy profiles_update
   on public.profiles
   for update
@@ -375,3 +401,22 @@ create policy profiles_update
 -- =============================================================================
 
 grant select, update on public.profiles to authenticated;
+
+
+-- =============================================================================
+-- Backfill
+--
+-- Accounts created before this migration ran have no profile row, because the
+-- signup trigger did not exist yet. Give each one a profile so nobody is
+-- stranded in the "authenticated but no profile" state, which the application
+-- treats as signed-out.
+-- =============================================================================
+
+insert into public.profiles (id, email, full_name)
+select
+  u.id,
+  u.email,
+  nullif(trim(coalesce(u.raw_user_meta_data ->> 'full_name', '')), '')
+from auth.users u
+where u.email is not null
+on conflict (id) do nothing;
