@@ -27,11 +27,28 @@ const parsed = clientEnvSchema.safeParse({
 });
 
 if (!parsed.success) {
-  // Fail at import time with a readable message rather than surfacing as an
-  // undefined value somewhere deep in the Supabase client.
+  // Fail at import time rather than surfacing as an undefined value deep inside
+  // the Supabase client. This also fails the build, which is intended: a broken
+  // deployment is worse than no deployment.
+  //
+  // The offending names are repeated on a single leading line because build
+  // logs wrap and truncate — the detail below scrolls out of view, which is
+  // exactly when you most need to know which variable is missing.
+  const names = [
+    ...new Set(parsed.error.issues.map((issue) => String(issue.path[0]))),
+  ];
+
   throw new Error(
-    `Invalid public environment variables:\n${z.prettifyError(parsed.error)}\n\n` +
-      "Copy .env.local.example to .env.local and fill in the values.",
+    [
+      `Missing or invalid environment variables: ${names.join(", ")}`,
+      "",
+      z.prettifyError(parsed.error),
+      "",
+      "Locally: copy .env.local.example to .env.local and fill it in.",
+      "On Vercel: add them under Settings -> Environment Variables for",
+      "Production, Preview AND Development, then redeploy. NEXT_PUBLIC_* values",
+      "are inlined at build time, so a change needs a rebuild to take effect.",
+    ].join("\n"),
   );
 }
 
