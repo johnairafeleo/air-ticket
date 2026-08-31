@@ -50,6 +50,25 @@ export const ACTIVE_STATUSES: readonly TicketStatus[] = [
   "PENDING",
 ];
 
+/**
+ * Everything except CLOSED — i.e. tickets still on someone's plate.
+ *
+ * Exported as a filter-ready string so dashboard links express exactly the same
+ * set the stat counts use. `dashboard_stats()` excludes CLOSED from its
+ * "needs attention" figures, and these links must agree with it.
+ */
+export const NOT_CLOSED_STATUSES: readonly TicketStatus[] = [
+  "OPEN",
+  "IN_PROGRESS",
+  "PENDING",
+  "RESOLVED",
+];
+
+export const NOT_CLOSED_PARAM = NOT_CLOSED_STATUSES.join(",");
+
+/** The three statuses that mean active work, as a filter parameter. */
+export const ACTIVE_STATUSES_PARAM = ["OPEN", "IN_PROGRESS", "PENDING"].join(",");
+
 /** Board columns, left to right in workflow order. */
 export const BOARD_COLUMNS: readonly TicketStatus[] = [
   "OPEN",

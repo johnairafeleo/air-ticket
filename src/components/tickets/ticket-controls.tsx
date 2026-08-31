@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { TicketSchedule } from "@/components/tickets/ticket-schedule";
 import {
   assignTicket,
   updateTicketCategory,
@@ -74,9 +75,9 @@ export function TicketControls({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="ticket-status">Status</Label>
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label htmlFor="ticket-status" className="text-xs uppercase tracking-wide text-muted-foreground">Status</Label>
         {statuses.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {ticket.status === "CLOSED"
@@ -115,8 +116,8 @@ export function TicketControls({
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="ticket-priority">Priority</Label>
+      <div className="space-y-1.5">
+        <Label htmlFor="ticket-priority" className="text-xs uppercase tracking-wide text-muted-foreground">Priority</Label>
         {isStaff ? (
           <Select
             value={ticket.priority}
@@ -144,8 +145,8 @@ export function TicketControls({
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="ticket-category">Category</Label>
+      <div className="space-y-1.5">
+        <Label htmlFor="ticket-category" className="text-xs uppercase tracking-wide text-muted-foreground">Category</Label>
         {isStaff ? (
           <Select
             value={ticket.category_id ?? NO_CATEGORY}
@@ -182,8 +183,8 @@ export function TicketControls({
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="ticket-assignee">Assigned to</Label>
+      <div className="space-y-1.5">
+        <Label htmlFor="ticket-assignee" className="text-xs uppercase tracking-wide text-muted-foreground">Assigned to</Label>
         {isStaff ? (
           <Select
             value={ticket.assigned_to ?? UNASSIGNED}
@@ -225,6 +226,10 @@ export function TicketControls({
               )}
           </p>
         )}
+      </div>
+
+      <div className="pt-1">
+        <TicketSchedule ticket={ticket} canEdit={isStaff} />
       </div>
 
       {pending ? (

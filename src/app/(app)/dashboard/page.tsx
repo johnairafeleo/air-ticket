@@ -27,7 +27,10 @@ import { PriorityBadge, StatusBadge } from "@/components/tickets/ticket-badges";
 import { requireUser } from "@/lib/auth/require-user";
 import { getDashboardStats } from "@/lib/tickets/dashboard";
 import { listTickets } from "@/lib/tickets/queries";
+import { ticketFiltersSchema } from "@/lib/validations/ticket";
 import {
+  ACTIVE_STATUSES_PARAM,
+  NOT_CLOSED_PARAM,
   PRIORITY_LABELS,
   PRIORITY_STYLES,
   STATUS_LABELS,
@@ -44,7 +47,9 @@ export default async function DashboardPage() {
 
   const [stats, recent] = await Promise.all([
     getDashboardStats(),
-    listTickets(profile, { page: 1, scope: "all" }),
+    // Parse rather than hand-build, so this picks up the schema's defaults and
+    // cannot drift from what the list page passes.
+    listTickets(profile, ticketFiltersSchema.parse({ scope: "all" })),
   ]);
 
   const isStaff = profile.role !== "USER";
@@ -77,31 +82,35 @@ export default async function DashboardPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {isStaff ? (
           <>
+            {/* Each href must reproduce exactly what its number counts.
+                dashboard_stats() excludes CLOSED from these figures, so the
+                links carry the same status set — otherwise clicking a card
+                shows a different total from the card itself. */}
             <StatCard
               label="Assigned to me"
               value={stats.assigned_to_me}
               icon={UserCheck}
-              href="/tickets?scope=assigned"
+              href={`/tickets?scope=assigned&status=${NOT_CLOSED_PARAM}`}
             />
             <StatCard
               label="Unassigned"
               value={stats.unassigned}
               icon={Inbox}
-              href="/tickets?scope=unassigned"
+              href={`/tickets?scope=unassigned&status=${NOT_CLOSED_PARAM}`}
               emphasis
             />
             <StatCard
               label="High or urgent"
               value={stats.urgent}
               icon={AlertTriangle}
-              href="/tickets?priority=URGENT"
+              href={`/tickets?priority=HIGH,URGENT&status=${NOT_CLOSED_PARAM}`}
               emphasis
             />
             <StatCard
               label="Still open"
               value={stats.open_like}
               icon={TicketIcon}
-              href="/tickets?status=OPEN"
+              href={`/tickets?status=${ACTIVE_STATUSES_PARAM}`}
             />
           </>
         ) : (

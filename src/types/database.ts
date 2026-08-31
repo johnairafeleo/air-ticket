@@ -107,6 +107,8 @@ export type Database = {
           updated_at: string;
           resolved_at: string | null;
           closed_at: string | null;
+          start_date: string | null;
+          end_date: string | null;
         };
         Insert: {
           id?: string;
@@ -122,6 +124,8 @@ export type Database = {
           updated_at?: string;
           resolved_at?: string | null;
           closed_at?: string | null;
+          start_date?: string | null;
+          end_date?: string | null;
         };
         Update: {
           id?: string;
@@ -137,6 +141,8 @@ export type Database = {
           updated_at?: string;
           resolved_at?: string | null;
           closed_at?: string | null;
+          start_date?: string | null;
+          end_date?: string | null;
         };
         Relationships: [
           {

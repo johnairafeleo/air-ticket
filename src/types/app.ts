@@ -45,3 +45,6 @@ export type TicketWithRelations = Ticket & {
   creator: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;
   assignee: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;
 };
+
+/** The planning dates, kept together since they are always edited as a pair. */
+export type TicketSchedule = Pick<Ticket, "start_date" | "end_date">;

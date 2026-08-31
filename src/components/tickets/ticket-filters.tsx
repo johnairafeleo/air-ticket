@@ -65,17 +65,36 @@ export function TicketFilters({
     });
   }
 
+  /**
+   * Status and priority accept comma-separated lists, because dashboard cards
+   * link to combinations like "high or urgent".
+   *
+   * The Select can only display one option, so: exactly one value selects that
+   * option; several fall back to a value matching no item, which makes Radix
+   * show the placeholder — set below to "N selected" so the state is stated
+   * rather than silently misreported as "Any".
+   */
+  const statusValues = (searchParams.get("status") ?? "")
+    .split(",")
+    .filter(Boolean);
+  const priorityValues = (searchParams.get("priority") ?? "")
+    .split(",")
+    .filter(Boolean);
+
+  const selectValue = (values: string[]) =>
+    values.length === 0 ? ANY : values.length === 1 ? values[0] : "";
+
   const current = {
-    status: searchParams.get("status") ?? ANY,
-    priority: searchParams.get("priority") ?? ANY,
+    status: selectValue(statusValues),
+    priority: selectValue(priorityValues),
     categoryId: searchParams.get("categoryId") ?? ANY,
     scope: searchParams.get("scope") ?? "all",
   };
 
   const hasFilters =
     Boolean(qParam) ||
-    current.status !== ANY ||
-    current.priority !== ANY ||
+    statusValues.length > 0 ||
+    priorityValues.length > 0 ||
     current.categoryId !== ANY ||
     current.scope !== "all";
 
@@ -125,7 +144,13 @@ export function TicketFilters({
 
         <Select value={current.status} onValueChange={(v) => apply({ status: v })}>
           <SelectTrigger className="w-[150px]" aria-label="Status">
-            <SelectValue placeholder="Status" />
+            <SelectValue
+              placeholder={
+                statusValues.length > 1
+                  ? `${statusValues.length} statuses`
+                  : "Status"
+              }
+            />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ANY}>Any status</SelectItem>
@@ -142,7 +167,13 @@ export function TicketFilters({
           onValueChange={(v) => apply({ priority: v })}
         >
           <SelectTrigger className="w-[150px]" aria-label="Priority">
-            <SelectValue placeholder="Priority" />
+            <SelectValue
+              placeholder={
+                priorityValues.length > 1
+                  ? `${priorityValues.length} priorities`
+                  : "Priority"
+              }
+            />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ANY}>Any priority</SelectItem>

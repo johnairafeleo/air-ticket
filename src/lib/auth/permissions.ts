@@ -1,4 +1,4 @@
-import type { Profile, UserRole } from "@/types/app";
+import type { Profile, Ticket, UserRole } from "@/types/app";
 
 /**
  * Pure permission predicates.
@@ -72,4 +72,32 @@ export function canAssignTickets(profile: Profile): boolean {
 
 export function canViewAllTickets(profile: Profile): boolean {
   return isAdmin(profile);
+}
+
+/**
+ * Whether `actor` may edit a ticket's title and description.
+ *
+ * Mirrors the USER branch of `guard_ticket_change()`:
+ *
+ *   ADMIN  always.
+ *   AGENT  when the ticket is theirs or unassigned — the trigger rejects
+ *          touching another agent's ticket, and RLS hides it anyway.
+ *   USER   only their own, and only while still OPEN. Once work has started the
+ *          wording is part of the record.
+ *
+ * The database enforces all of this regardless; this only decides whether to
+ * offer the button.
+ */
+export function canEditTicketDetails(
+  actor: Profile,
+  ticket: Pick<Ticket, "created_by" | "assigned_to" | "status">,
+): boolean {
+  if (!actor.is_active) return false;
+  if (actor.role === "ADMIN") return true;
+
+  if (actor.role === "AGENT") {
+    return ticket.assigned_to === null || ticket.assigned_to === actor.id;
+  }
+
+  return ticket.created_by === actor.id && ticket.status === "OPEN";
 }

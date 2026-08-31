@@ -57,6 +57,25 @@ export const updateTicketCategorySchema = z.object({
     .transform((value) => (value === "" ? null : value)),
 });
 
+/** An empty string from a date input means "cleared". */
+const optionalDate = z
+  .union([z.iso.date(), z.literal("")])
+  .transform((value) => (value === "" ? null : value));
+
+export const updateTicketScheduleSchema = z
+  .object({
+    ticketId: z.uuid(),
+    startDate: optionalDate,
+    endDate: optionalDate,
+  })
+  // Mirrors the tickets_date_range CHECK constraint, so the user gets a field
+  // error instead of a database exception.
+  .refine(
+    (data) =>
+      !data.startDate || !data.endDate || data.endDate >= data.startDate,
+    { error: "End date cannot be before the start date.", path: ["endDate"] },
+  );
+
 export const assignTicketSchema = z.object({
   ticketId: z.uuid(),
   // Empty string means "return to the unassigned queue".
@@ -65,11 +84,34 @@ export const assignTicketSchema = z.object({
     .transform((value) => (value === "" ? null : value)),
 });
 
+/**
+ * Comma-separated enum list, e.g. `?status=OPEN,IN_PROGRESS`.
+ *
+ * Multi-value filters exist because the dashboard counts combinations — "high
+ * or urgent", "not closed" — and a single-value filter cannot express them, so
+ * a card's number and its link disagreed. An empty result means "no filter".
+ * Unknown values are dropped rather than failing the whole parse, so a
+ * hand-edited URL degrades instead of silently resetting every filter.
+ */
+function multiEnum<T extends readonly [string, ...string[]]>(values: T) {
+  const allowed = new Set<string>(values);
+
+  return z
+    .string()
+    .optional()
+    .transform((raw) =>
+      (raw ?? "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter((v) => allowed.has(v)),
+    ) as unknown as z.ZodType<T[number][], unknown>;
+}
+
 /** Filters accepted by the ticket list. All optional. */
 export const ticketFiltersSchema = z.object({
   q: z.string().trim().max(200).optional(),
-  status: z.enum(TICKET_STATUSES).optional(),
-  priority: z.enum(TICKET_PRIORITIES).optional(),
+  status: multiEnum(TICKET_STATUSES),
+  priority: multiEnum(TICKET_PRIORITIES),
   categoryId: z.uuid().optional(),
   scope: z.enum(["all", "mine", "assigned", "unassigned"]).optional(),
   page: z.coerce.number().int().min(1).max(1000).default(1),
@@ -78,4 +120,6 @@ export const ticketFiltersSchema = z.object({
 export type CreateTicketInput = z.input<typeof createTicketSchema>;
 export type CreateTicketValues = z.output<typeof createTicketSchema>;
 export type UpdateTicketDetailsInput = z.infer<typeof updateTicketDetailsSchema>;
+export type UpdateTicketScheduleInput = z.input<typeof updateTicketScheduleSchema>;
+export type UpdateTicketScheduleValues = z.output<typeof updateTicketScheduleSchema>;
 export type TicketFilters = z.output<typeof ticketFiltersSchema>;

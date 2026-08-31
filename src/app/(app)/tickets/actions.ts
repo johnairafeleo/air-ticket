@@ -12,6 +12,7 @@ import {
   updateTicketCategorySchema,
   updateTicketDetailsSchema,
   updateTicketPrioritySchema,
+  updateTicketScheduleSchema,
   updateTicketStatusSchema,
 } from "@/lib/validations/ticket";
 
@@ -25,6 +26,20 @@ import {
  * cannot escalate — they just get a less friendly message.
  */
 
+/**
+ * Refresh every view a ticket appears in.
+ *
+ * `revalidatePath("/tickets")` matches that exact path only — it does NOT cover
+ * `/tickets/board`, which is a separate route with its own data. Missing it
+ * meant the board kept serving stale server data after a mutation.
+ */
+function revalidateTicket(ticketId: string) {
+  revalidatePath("/tickets");
+  revalidatePath("/tickets/board");
+  revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath("/dashboard");
+}
+
 /** Turn a Postgres exception from the guard triggers into something readable. */
 function describeTicketError(message: string): string {
   if (message.includes("Cannot change ticket status")) {
@@ -36,8 +51,11 @@ function describeTicketError(message: string): string {
   if (message.includes("Only an administrator can assign")) {
     return "Only an administrator can assign a ticket to someone else.";
   }
+  if (message.includes("tickets_date_range")) {
+    return "The end date cannot be before the start date.";
+  }
   if (message.includes("Only support staff can change")) {
-    return "Only support staff can change priority, category or assignment.";
+    return "Only support staff can change priority, category, assignment or scheduling.";
   }
   if (message.includes("only close a ticket that has been resolved")) {
     return "You can only close a ticket once it has been resolved.";
@@ -80,7 +98,7 @@ export async function createTicket(input: unknown): Promise<ActionResult> {
     );
   }
 
-  revalidatePath("/tickets");
+  revalidateTicket(data.id);
   redirect(`/tickets/${data.id}`);
 }
 
@@ -98,8 +116,7 @@ export async function updateTicketStatus(input: unknown): Promise<ActionResult> 
 
   if (error) return fail(describeTicketError(error.message));
 
-  revalidatePath(`/tickets/${parsed.data.ticketId}`);
-  revalidatePath("/tickets");
+  revalidateTicket(parsed.data.ticketId);
   return ok();
 }
 
@@ -117,8 +134,7 @@ export async function updateTicketPriority(input: unknown): Promise<ActionResult
 
   if (error) return fail(describeTicketError(error.message));
 
-  revalidatePath(`/tickets/${parsed.data.ticketId}`);
-  revalidatePath("/tickets");
+  revalidateTicket(parsed.data.ticketId);
   return ok();
 }
 
@@ -136,7 +152,7 @@ export async function updateTicketCategory(input: unknown): Promise<ActionResult
 
   if (error) return fail(describeTicketError(error.message));
 
-  revalidatePath(`/tickets/${parsed.data.ticketId}`);
+  revalidateTicket(parsed.data.ticketId);
   return ok();
 }
 
@@ -160,8 +176,31 @@ export async function assignTicket(input: unknown): Promise<ActionResult> {
 
   if (error) return fail(describeTicketError(error.message));
 
-  revalidatePath(`/tickets/${parsed.data.ticketId}`);
-  revalidatePath("/tickets");
+  revalidateTicket(parsed.data.ticketId);
+  return ok();
+}
+
+/** Set or clear a ticket's planned start and end dates. Staff only. */
+export async function updateTicketSchedule(input: unknown): Promise<ActionResult> {
+  await requireUser();
+
+  const parsed = updateTicketScheduleSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("Please correct the errors below.", zodFieldErrors(parsed.error));
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tickets")
+    .update({
+      start_date: parsed.data.startDate,
+      end_date: parsed.data.endDate,
+    })
+    .eq("id", parsed.data.ticketId);
+
+  if (error) return fail(describeTicketError(error.message));
+
+  revalidateTicket(parsed.data.ticketId);
   return ok();
 }
 
@@ -184,7 +223,6 @@ export async function updateTicketDetails(input: unknown): Promise<ActionResult>
 
   if (error) return fail(describeTicketError(error.message));
 
-  revalidatePath(`/tickets/${parsed.data.ticketId}`);
-  revalidatePath("/tickets");
+  revalidateTicket(parsed.data.ticketId);
   return ok();
 }

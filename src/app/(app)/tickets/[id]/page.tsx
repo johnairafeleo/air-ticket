@@ -18,6 +18,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { initialsOf } from "@/lib/users";
 import { PriorityBadge, StatusBadge } from "@/components/tickets/ticket-badges";
 import { TicketControls } from "@/components/tickets/ticket-controls";
+import { EditTicketDialog } from "@/components/tickets/edit-ticket-dialog";
+import { canEditTicketDetails } from "@/lib/auth/permissions";
 import { requireUser } from "@/lib/auth/require-user";
 import {
   getTicket,
@@ -52,6 +54,9 @@ export default async function TicketDetailPage(
       ? [[], []]
       : await Promise.all([listAssignableAgents(), listCategories()]);
 
+  const isOwner = ticket.created_by === profile.id;
+  const canEdit = canEditTicketDetails(profile, ticket);
+
   return (
     <>
       <PageHeader
@@ -82,6 +87,20 @@ export default async function TicketDetailPage(
                     in {ticket.category.name}
                   </span>
                 ) : null}
+
+                <div className="ml-auto">
+                  {canEdit ? (
+                    <EditTicketDialog ticket={ticket} />
+                  ) : (
+                    // Say why rather than silently omitting the button — the
+                    // rule is a real workflow constraint, not an oversight.
+                    <span className="text-xs text-muted-foreground">
+                      {isOwner
+                        ? "Can no longer be edited — work has started"
+                        : "Only support staff can edit this"}
+                    </span>
+                  )}
+                </div>
               </div>
             </CardHeader>
 
@@ -149,6 +168,17 @@ export default async function TicketDetailPage(
               </div>
 
               <Separator />
+
+              {ticket.start_date ? (
+                <Row label="Planned start">
+                  {format(new Date(ticket.start_date), "d MMM yyyy")}
+                </Row>
+              ) : null}
+              {ticket.end_date ? (
+                <Row label="Planned end">
+                  {format(new Date(ticket.end_date), "d MMM yyyy")}
+                </Row>
+              ) : null}
 
               <Row label="Created">
                 {format(new Date(ticket.created_at), "d MMM yyyy, HH:mm")}

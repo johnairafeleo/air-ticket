@@ -7,7 +7,11 @@ import { PageHeader } from "@/components/layout/page-header";
 import { TicketBoard } from "@/components/tickets/ticket-board";
 import { ViewToggle } from "@/components/tickets/view-toggle";
 import { requireRole } from "@/lib/auth/require-user";
-import { listBoardTickets } from "@/lib/tickets/queries";
+import {
+  listAssignableAgents,
+  listBoardTickets,
+  listCategories,
+} from "@/lib/tickets/queries";
 
 export const metadata: Metadata = {
   title: "Board",
@@ -18,7 +22,11 @@ export default async function TicketBoardPage() {
   // before anything renders — the hidden nav item is not the protection.
   const { profile } = await requireRole("AGENT");
 
-  const board = await listBoardTickets();
+  const [board, agents, categories] = await Promise.all([
+    listBoardTickets(),
+    listAssignableAgents(),
+    listCategories(),
+  ]);
 
   return (
     <>
@@ -38,7 +46,12 @@ export default async function TicketBoardPage() {
         }
       />
 
-      <TicketBoard initial={board} actor={profile} />
+      <TicketBoard
+        initial={board}
+        actor={profile}
+        agents={agents}
+        categories={categories}
+      />
     </>
   );
 }

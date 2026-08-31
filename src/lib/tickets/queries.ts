@@ -51,8 +51,10 @@ export async function listTickets(
     .order("created_at", { ascending: false })
     .range(from, from + TICKETS_PER_PAGE - 1);
 
-  if (filters.status) query = query.eq("status", filters.status);
-  if (filters.priority) query = query.eq("priority", filters.priority);
+  // Status and priority are lists so a filter can express "high or urgent" and
+  // "not closed" — the combinations the dashboard cards count.
+  if (filters.status.length > 0) query = query.in("status", filters.status);
+  if (filters.priority.length > 0) query = query.in("priority", filters.priority);
   if (filters.categoryId) query = query.eq("category_id", filters.categoryId);
 
   switch (filters.scope) {

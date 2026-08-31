@@ -88,7 +88,7 @@ export function NewTicketForm({ categories }: { categories: Category[] }) {
               <Textarea
                 {...field}
                 id="description"
-                rows={8}
+                className="min-h-56"
                 placeholder="What happened, what you expected, and anything you have already tried."
                 aria-invalid={Boolean(fieldState.error)}
               />

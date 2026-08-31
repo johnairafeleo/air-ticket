@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -22,33 +22,79 @@ import {
   availableStatuses,
   canTransition,
 } from "@/lib/tickets/constants";
+import { canEditTicketDetails } from "@/lib/auth/permissions";
 import type { BoardData } from "@/lib/tickets/queries";
-import type { Profile, TicketStatus, TicketWithRelations } from "@/types/app";
+import type {
+  Category,
+  Profile,
+  TicketStatus,
+  TicketWithRelations,
+} from "@/types/app";
 
 /**
  * The Kanban board.
  *
- * Local state mirrors the server data so a dropped card moves immediately. The
- * database is still the authority: `updateTicketStatus` goes through the same
- * guards as every other path, and a rejection rolls the card back to where it
- * came from. The UI never wins that argument — it only avoids waiting for it.
+ * `initial` is the source of truth and comes from the server on every
+ * revalidation. Local state holds ONLY in-flight optimistic moves, and the
+ * rendered board is derived from the two. Copying the server data into state
+ * would freeze it at mount, so an edit or a change made elsewhere would never
+ * appear.
+ *
+ * The database remains authoritative: `updateTicketStatus` goes through the
+ * same guards as every other path, and a rejection drops the override so the
+ * card snaps back.
  */
 export function TicketBoard({
   initial,
   actor,
+  agents,
+  categories,
 }: {
   initial: BoardData;
   actor: Profile;
+  /** Passed down so the card modal's controls need no extra fetch. */
+  agents: Profile[];
+  categories: Category[];
 }) {
-  const [board, setBoard] = useState<BoardData>(initial);
+  /** ticket id -> status the user dragged it to, pending server confirmation. */
+  const [pending, setPending] = useState<Record<string, TicketStatus>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
-    // A small distance threshold means a click on the card's link is still a
-    // click, not an accidental micro-drag.
+    // A small threshold keeps a click on the card's link a click rather than an
+    // accidental micro-drag.
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor),
   );
+
+  const board = useMemo<BoardData>(() => {
+    const out = Object.fromEntries(
+      BOARD_COLUMNS.map((s) => [
+        s,
+        { tickets: [] as TicketWithRelations[], total: initial[s].total },
+      ]),
+    ) as BoardData;
+
+    for (const source of BOARD_COLUMNS) {
+      for (const ticket of initial[source].tickets) {
+        const target = pending[ticket.id] ?? source;
+
+        if (target === source) {
+          out[source].tickets.push(ticket);
+          continue;
+        }
+
+        // Override still outstanding: show the card where the user put it, and
+        // shift the column counts to match. Once the server catches up, the
+        // override equals the real status and this branch stops firing.
+        out[target].tickets.unshift({ ...ticket, status: target });
+        out[source].total -= 1;
+        out[target].total += 1;
+      }
+    }
+
+    return out;
+  }, [initial, pending]);
 
   const allTickets = BOARD_COLUMNS.flatMap((s) => board[s].tickets);
   const activeTicket = allTickets.find((t) => t.id === activeId) ?? null;
@@ -58,26 +104,6 @@ export function TicketBoard({
       availableStatuses(actor, ticket.status, ticket.created_by === actor.id)
         .length > 0
     );
-  }
-
-  function move(
-    current: BoardData,
-    ticket: TicketWithRelations,
-    from: TicketStatus,
-    to: TicketStatus,
-  ): BoardData {
-    const moved = { ...ticket, status: to };
-    return {
-      ...current,
-      [from]: {
-        tickets: current[from].tickets.filter((t) => t.id !== ticket.id),
-        total: current[from].total - 1,
-      },
-      [to]: {
-        tickets: [moved, ...current[to].tickets],
-        total: current[to].total + 1,
-      },
-    };
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -90,25 +116,31 @@ export function TicketBoard({
     const { active, over } = event;
     if (!over) return;
 
-    const ticket = allTickets.find((t) => t.id === String(active.id));
+    const id = String(active.id);
+    const ticket = allTickets.find((t) => t.id === id);
     if (!ticket) return;
 
     const from = ticket.status;
     const to = over.id as TicketStatus;
     if (from === to || !canTransition(from, to)) return;
 
-    const before = board;
-    setBoard((current) => move(current, ticket, from, to));
+    setPending((p) => ({ ...p, [id]: to }));
 
-    const result = await updateTicketStatus({ ticketId: ticket.id, status: to });
+    const result = await updateTicketStatus({ ticketId: id, status: to });
 
     if (!result.ok) {
-      // Snap back to exactly the state before the drag, not a recomputed one.
-      setBoard(before);
+      // Drop the override; the card returns to wherever the server says it is.
+      setPending((p) => {
+        const next = { ...p };
+        delete next[id];
+        return next;
+      });
       toast.error(result.error);
       return;
     }
 
+    // Deliberately keep the override until revalidated props arrive. Clearing
+    // it here would flash the card back to its old column for a frame.
     toast.success(`${ticket.ticket_number} moved to ${STATUS_LABELS[to]}.`);
   }
 
@@ -142,6 +174,10 @@ export function TicketBoard({
                   key={ticket.id}
                   ticket={ticket}
                   draggable={isDraggable(ticket)}
+                  actor={actor}
+                  agents={agents}
+                  categories={categories}
+                  canEdit={canEditTicketDetails(actor, ticket)}
                   isDragging={ticket.id === activeId}
                 />
               ))}
@@ -152,7 +188,14 @@ export function TicketBoard({
 
       <DragOverlay>
         {activeTicket ? (
-          <TicketCard ticket={activeTicket} draggable={false} overlay />
+          <TicketCard
+            ticket={activeTicket}
+            draggable={false}
+            actor={actor}
+            agents={agents}
+            categories={categories}
+            overlay
+          />
         ) : null}
       </DragOverlay>
     </DndContext>
