@@ -103,6 +103,13 @@ export function TicketBoard({
     return out;
   }, [initial, pending]);
 
+  const isStaff =
+    actor.isSystemAdmin ||
+    actor.projectRole === "AGENT" ||
+    actor.projectRole === "MANAGER";
+  // A VIEWER cannot raise tickets at all; a MEMBER can, but only into OPEN.
+  const canCreate = isStaff || actor.projectRole === "MEMBER";
+
   const allTickets = BOARD_COLUMNS.flatMap((s) => board[s].tickets);
   const activeTicket = allTickets.find((t) => t.id === activeId) ?? null;
 
@@ -178,10 +185,9 @@ export function TicketBoard({
               projectId={projectId}
               projects={projects}
               categories={categories}
-              canSchedule={
-                actor.isSystemAdmin ||
-                actor.projectRole === "AGENT" ||
-                actor.projectRole === "MANAGER"
+              canSchedule={isStaff}
+              canAddHere={
+                canCreate && (isStaff || status === "OPEN")
               }
             >
               {column.tickets.map((ticket) => (

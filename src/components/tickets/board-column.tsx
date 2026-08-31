@@ -26,6 +26,7 @@ export function BoardColumn({
   projects,
   categories,
   canSchedule,
+  canAddHere,
   children,
 }: {
   status: TicketStatus;
@@ -36,6 +37,12 @@ export function BoardColumn({
   projects: Project[];
   categories: Category[];
   canSchedule: boolean;
+  /**
+   * Whether a ticket created from this column would actually stay here.
+   * guard_ticket_insert() pins a requester's ticket to OPEN, so offering "+"
+   * on other columns would silently put the ticket somewhere else.
+   */
+  canAddHere: boolean;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status, disabled });
@@ -66,6 +73,7 @@ export function BoardColumn({
 
         {/* Creates the ticket directly in this column — guard_ticket_insert()
             accepts the starting status from staff. */}
+        {canAddHere ? (
         <NewTicketDialog
           categories={categories}
           projects={projects}
@@ -83,6 +91,7 @@ export function BoardColumn({
             </Button>
           }
         />
+        ) : null}
       </header>
 
       <div className="flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto p-2">

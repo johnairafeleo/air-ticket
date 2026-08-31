@@ -1,6 +1,5 @@
 import { requireUser } from "@/lib/auth/require-user";
 import { getActiveProjectId, listProjects } from "@/lib/projects/active";
-import { getTicketActor, isProjectStaff } from "@/lib/projects/access";
 import { navSectionsFor } from "@/components/layout/nav-items";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
@@ -26,12 +25,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     getActiveProjectId(),
   ]);
 
-  // Nav visibility follows the caller's role in the active project.
-  const staff = activeProjectId
-    ? isProjectStaff(await getTicketActor(profile, activeProjectId))
-    : false;
-
-  const sections = navSectionsFor(profile, staff);
+  const sections = navSectionsFor(profile);
 
   return (
     <div className="flex min-h-svh">

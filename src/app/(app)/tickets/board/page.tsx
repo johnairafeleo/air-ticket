@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { TicketBoard } from "@/components/tickets/ticket-board";
@@ -41,12 +40,9 @@ export default async function TicketBoardPage() {
     listProjects(),
   ]);
 
-  // The real gate, now on the PROJECT role: someone who only raises tickets
-  // here has at most one legal drag, so the board is not for them. Checked
-  // server-side — the hidden nav item is not the protection.
-  if (!isProjectStaff(actor)) {
-    redirect("/tickets");
-  }
+  // No role gate here any more: RLS already limits the board to tickets the
+  // caller may see, and availableStatuses() decides which cards they can drag.
+  // A member simply gets a smaller, mostly read-only board.
 
   return (
     <>

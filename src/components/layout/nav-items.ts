@@ -28,12 +28,6 @@ export type NavItem = {
   icon: NavIconName;
   /** Minimum GLOBAL role required — really only "system admin or not". */
   minRole: UserRole;
-  /**
-   * Also requires AGENT or MANAGER in the active project. Since 0009 capability
-   * comes from the project role, so gating this on the global role would hide
-   * the board from someone who genuinely works the queue here.
-   */
-  projectStaffOnly?: boolean;
   /** Match child routes too (e.g. /tickets/123 highlights /tickets). */
   prefix?: boolean;
 };
@@ -61,13 +55,13 @@ const SECTIONS: NavSection[] = [
         prefix: true,
       },
       {
-        // Staff only: a USER's single legal drag is Resolved -> Closed on their
-        // own ticket, so the board would be almost entirely inert for them.
+        // Everyone in the project. A MEMBER only sees their own tickets, but a
+        // board of those grouped by status is still a useful view — and the
+        // cards themselves are only draggable where the workflow allows it.
         href: "/tickets/board",
         label: "Board",
         icon: "board",
         minRole: "USER",
-        projectStaffOnly: true,
       },
       {
         // Visible to everyone: the page shows who is in the project and
@@ -115,18 +109,10 @@ const SECTIONS: NavSection[] = [
  * rule server-side via `requireRole()`, so removing the nav item is never what
  * keeps anyone out.
  */
-export function navSectionsFor(
-  profile: Profile,
-  /** Whether the caller is an agent or manager of the ACTIVE project. */
-  isProjectStaff: boolean,
-): NavSection[] {
+export function navSectionsFor(profile: Profile): NavSection[] {
   return SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter(
-      (item) =>
-        hasAtLeastRole(profile, item.minRole) &&
-        (!item.projectStaffOnly || isProjectStaff),
-    ),
+    items: section.items.filter((item) => hasAtLeastRole(profile, item.minRole)),
   })).filter((section) => section.items.length > 0);
 }
 

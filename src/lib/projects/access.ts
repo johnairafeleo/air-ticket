@@ -21,19 +21,27 @@ import type {
  * The database is still the authority — nothing here is a security boundary.
  */
 
-/** The caller's role in a project, or null if they are not a member. */
+/**
+ * The caller's role in a project, or null if they are not a member.
+ *
+ * Uses the project_role_of() RPC rather than reading project_members directly.
+ * A direct read has to be filtered by user_id as well as project_id — RLS lets
+ * you see EVERY member of your projects, so filtering on project_id alone
+ * returns every member and .maybeSingle() then fails, reporting you as a
+ * non-member of your own project. The RPC keys off auth.uid() internally, so
+ * that mistake is not available, and it is the same function the RLS policies
+ * use.
+ */
 export const getProjectRole = cache(
   async (projectId: string): Promise<ProjectRole | null> => {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from("project_members")
-      .select("role")
-      .eq("project_id", projectId)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc("project_role_of", {
+      p_project: projectId,
+    });
 
-    if (error || !data) return null;
-    return data.role;
+    if (error) return null;
+    return data ?? null;
   },
 );
 
