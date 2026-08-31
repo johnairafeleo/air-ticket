@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/require-user";
 import { createClient } from "@/lib/supabase/server";
@@ -72,7 +71,16 @@ function describeTicketError(message: string): string {
   return "Could not apply that change. Please try again.";
 }
 
-export async function createTicket(input: unknown): Promise<ActionResult> {
+/**
+ * Create a ticket.
+ *
+ * Returns the new id rather than redirecting, so the caller decides what
+ * happens next: the full page navigates to the ticket, while the modal simply
+ * closes and lets revalidation surface it in place.
+ */
+export async function createTicket(
+  input: unknown,
+): Promise<ActionResult<{ id: string; ticketNumber: string }>> {
   const { profile } = await requireUser();
 
   const parsed = createTicketSchema.safeParse(input);
@@ -89,13 +97,16 @@ export async function createTicket(input: unknown): Promise<ActionResult> {
       description: parsed.data.description,
       category_id: parsed.data.categoryId,
       priority: parsed.data.priority,
+      start_date: parsed.data.startDate,
+      end_date: parsed.data.endDate,
+      status: parsed.data.status,
       // ticket_number is deliberately absent: guard_ticket_insert() derives it
       // from the project key and that project's own counter.
       // The insert guard overwrites this with auth.uid() anyway; sending it
       // keeps the NOT NULL column satisfied and the intent explicit.
       created_by: profile.id,
     })
-    .select("id")
+    .select("id, ticket_number")
     .single();
 
   if (error || !data) {
@@ -105,7 +116,7 @@ export async function createTicket(input: unknown): Promise<ActionResult> {
   }
 
   revalidateTicket(data.id);
-  redirect(`/tickets/${data.id}`);
+  return ok({ id: data.id, ticketNumber: data.ticket_number });
 }
 
 export async function updateTicketStatus(input: unknown): Promise<ActionResult> {

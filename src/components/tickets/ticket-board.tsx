@@ -27,6 +27,7 @@ import type { BoardData } from "@/lib/tickets/queries";
 import type {
   Category,
   Profile,
+  Project,
   TicketStatus,
   TicketWithRelations,
 } from "@/types/app";
@@ -49,12 +50,17 @@ export function TicketBoard({
   actor,
   agents,
   categories,
+  projects,
+  projectId,
 }: {
   initial: BoardData;
   actor: Profile;
   /** Passed down so the card modal's controls need no extra fetch. */
   agents: Profile[];
   categories: Category[];
+  /** For the per-column "New ticket" dialogs. */
+  projects: Project[];
+  projectId: string;
 }) {
   /** ticket id -> status the user dragged it to, pending server confirmation. */
   const [pending, setPending] = useState<Record<string, TicketStatus>>({});
@@ -168,6 +174,10 @@ export function TicketBoard({
               count={column.tickets.length}
               total={column.total}
               disabled={disabled}
+              projectId={projectId}
+              projects={projects}
+              categories={categories}
+              canSchedule={actor.role !== "USER"}
             >
               {column.tickets.map((ticket) => (
                 <TicketCard

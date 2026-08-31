@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Inbox,
-  Plus,
   Ticket as TicketIcon,
   UserCheck,
   Users,
@@ -28,7 +27,9 @@ import { requireUser } from "@/lib/auth/require-user";
 import { getDashboardStats } from "@/lib/tickets/dashboard";
 import { listTickets } from "@/lib/tickets/queries";
 import { ticketFiltersSchema } from "@/lib/validations/ticket";
-import { getActiveProject } from "@/lib/projects/active";
+import { getActiveProject, listProjects } from "@/lib/projects/active";
+import { NewTicketDialog } from "@/components/tickets/new-ticket-dialog";
+import { listCategories } from "@/lib/tickets/queries";
 import { NoProjects } from "@/components/projects/no-projects";
 import {
   ACTIVE_STATUSES_PARAM,
@@ -60,7 +61,7 @@ export default async function DashboardPage() {
     );
   }
 
-  const [stats, recent] = await Promise.all([
+  const [stats, recent, categories, projects] = await Promise.all([
     getDashboardStats(activeProject.id),
     // Parse rather than hand-build, so this picks up the schema's defaults and
     // cannot drift from what the list page passes.
@@ -69,6 +70,8 @@ export default async function DashboardPage() {
       ticketFiltersSchema.parse({ scope: "all" }),
       activeProject.id,
     ),
+    listCategories(),
+    listProjects(),
   ]);
 
   const isStaff = profile.role !== "USER";
@@ -86,12 +89,12 @@ export default async function DashboardPage() {
         actions={
           <>
             <RoleBadge role={profile.role} />
-            <Button asChild>
-              <Link href="/tickets/new">
-                <Plus aria-hidden />
-                New ticket
-              </Link>
-            </Button>
+            <NewTicketDialog
+              categories={categories}
+              projects={projects}
+              defaultProjectId={activeProject.id}
+              canSchedule={profile.role !== "USER"}
+            />
           </>
         }
       />

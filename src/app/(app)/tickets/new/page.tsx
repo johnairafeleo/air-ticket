@@ -55,7 +55,7 @@ export default async function NewTicketPage() {
         }
       />
 
-      <Card className="max-w-3xl">
+      <Card className="max-w-5xl">
         <CardHeader>
           <CardTitle>Ticket details</CardTitle>
           <CardDescription>
@@ -68,6 +68,7 @@ export default async function NewTicketPage() {
             categories={categories}
             projects={projects}
             defaultProjectId={activeProjectId ?? undefined}
+            canSchedule={profile.role !== "USER"}
           />
         </CardContent>
       </Card>

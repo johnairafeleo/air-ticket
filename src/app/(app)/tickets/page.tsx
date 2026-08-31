@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,9 +7,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { TicketFilters } from "@/components/tickets/ticket-filters";
 import { TicketTable } from "@/components/tickets/ticket-table";
 import { ViewToggle } from "@/components/tickets/view-toggle";
+import { NewTicketDialog } from "@/components/tickets/new-ticket-dialog";
 import { requireUser } from "@/lib/auth/require-user";
 import { listCategories, listTickets } from "@/lib/tickets/queries";
-import { getActiveProject } from "@/lib/projects/active";
+import { getActiveProject, listProjects } from "@/lib/projects/active";
 import { NoProjects } from "@/components/projects/no-projects";
 import { ticketFiltersSchema } from "@/lib/validations/ticket";
 
@@ -38,8 +38,9 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
     );
   }
 
-  const [categories, result] = await Promise.all([
+  const [categories, projects, result] = await Promise.all([
     listCategories(),
+    listProjects(),
     listTickets(profile, filters, activeProject.id),
   ]);
 
@@ -58,12 +59,12 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
             {/* The board route is gated on AGENT, so offering the toggle to a
                 USER would just link them to a redirect. */}
             {profile.role !== "USER" ? <ViewToggle /> : null}
-            <Button asChild>
-              <Link href="/tickets/new">
-                <Plus aria-hidden />
-                New ticket
-              </Link>
-            </Button>
+            <NewTicketDialog
+              categories={categories}
+              projects={projects}
+              defaultProjectId={activeProject.id}
+              canSchedule={profile.role !== "USER"}
+            />
           </>
         }
       />

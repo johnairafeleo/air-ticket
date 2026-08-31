@@ -9,25 +9,43 @@ import { TICKET_PRIORITIES, TICKET_STATUSES } from "@/types/app";
  * that passes here cannot be rejected by the database for length.
  */
 
-export const createTicketSchema = z.object({
-  // Required: a ticket's number is derived from its project's key, so there is
-  // no meaningful "no project" state.
-  projectId: z.uuid({ error: "Choose a project." }),
-  title: z
-    .string()
-    .trim()
-    .min(3, { error: "Give the ticket a short, descriptive title." })
-    .max(200, { error: "Title must be 200 characters or fewer." }),
-  description: z
-    .string()
-    .trim()
-    .min(10, { error: "Describe the problem in at least 10 characters." })
-    .max(10000, { error: "Description must be 10,000 characters or fewer." }),
-  categoryId: z
-    .union([z.uuid({ error: "Choose a category." }), z.literal("")])
-    .transform((value) => (value === "" ? null : value)),
-  priority: z.enum(TICKET_PRIORITIES, { error: "Choose a priority." }),
-});
+/** An empty string from a date input means "cleared". */
+const optionalDate = z
+  .union([z.iso.date(), z.literal("")])
+  .transform((value) => (value === "" ? null : value));
+
+export const createTicketSchema = z
+  .object({
+    // Required: a ticket's number is derived from its project's key, so there
+    // is no meaningful "no project" state.
+    projectId: z.uuid({ error: "Choose a project." }),
+    title: z
+      .string()
+      .trim()
+      .min(3, { error: "Give the ticket a short, descriptive title." })
+      .max(200, { error: "Title must be 200 characters or fewer." }),
+    description: z
+      .string()
+      .trim()
+      .min(10, { error: "Describe the problem in at least 10 characters." })
+      .max(10000, { error: "Description must be 10,000 characters or fewer." }),
+    categoryId: z
+      .union([z.uuid({ error: "Choose a category." }), z.literal("")])
+      .transform((value) => (value === "" ? null : value)),
+    priority: z.enum(TICKET_PRIORITIES, { error: "Choose a priority." }),
+    // Staff-only. guard_ticket_insert() nulls these for USER callers, so the
+    // form hiding them is convenience, not enforcement.
+    startDate: optionalDate,
+    endDate: optionalDate,
+    // Which board column to create into. Staff only — the insert guard pins a
+    // requester's ticket to OPEN regardless of what is sent.
+    status: z.enum(TICKET_STATUSES).optional(),
+  })
+  .refine(
+    (data) =>
+      !data.startDate || !data.endDate || data.endDate >= data.startDate,
+    { error: "End date cannot be before the start date.", path: ["endDate"] },
+  );
 
 export const updateTicketDetailsSchema = z.object({
   ticketId: z.uuid(),
@@ -59,11 +77,6 @@ export const updateTicketCategorySchema = z.object({
     .union([z.uuid(), z.literal("")])
     .transform((value) => (value === "" ? null : value)),
 });
-
-/** An empty string from a date input means "cleared". */
-const optionalDate = z
-  .union([z.iso.date(), z.literal("")])
-  .transform((value) => (value === "" ? null : value));
 
 export const updateTicketScheduleSchema = z
   .object({

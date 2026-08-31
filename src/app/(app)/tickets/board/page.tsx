@@ -1,18 +1,16 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Plus } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { TicketBoard } from "@/components/tickets/ticket-board";
 import { ViewToggle } from "@/components/tickets/view-toggle";
+import { NewTicketDialog } from "@/components/tickets/new-ticket-dialog";
 import { requireRole } from "@/lib/auth/require-user";
 import {
   listAssignableAgents,
   listBoardTickets,
   listCategories,
 } from "@/lib/tickets/queries";
-import { getActiveProject } from "@/lib/projects/active";
+import { getActiveProject, listProjects } from "@/lib/projects/active";
 import { NoProjects } from "@/components/projects/no-projects";
 
 export const metadata: Metadata = {
@@ -35,10 +33,11 @@ export default async function TicketBoardPage() {
     );
   }
 
-  const [board, agents, categories] = await Promise.all([
+  const [board, agents, categories, projects] = await Promise.all([
     listBoardTickets(activeProject.id),
     listAssignableAgents(),
     listCategories(),
+    listProjects(),
   ]);
 
   return (
@@ -49,12 +48,12 @@ export default async function TicketBoardPage() {
         actions={
           <>
             <ViewToggle />
-            <Button asChild>
-              <Link href="/tickets/new">
-                <Plus aria-hidden />
-                New ticket
-              </Link>
-            </Button>
+            <NewTicketDialog
+              categories={categories}
+              projects={projects}
+              defaultProjectId={activeProject.id}
+              canSchedule={profile.role !== "USER"}
+            />
           </>
         }
       />
@@ -64,6 +63,8 @@ export default async function TicketBoardPage() {
         actor={profile}
         agents={agents}
         categories={categories}
+        projects={projects}
+        projectId={activeProject.id}
       />
     </>
   );
