@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
-import { TextField } from "@/components/forms/text-field";
+import { PasswordField } from "@/components/forms/password-field";
 import { resetPassword } from "@/app/(auth)/actions";
 import { applyServerErrors } from "@/lib/forms/apply-server-errors";
 import {
@@ -41,20 +41,18 @@ export function ResetPasswordForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
       <FieldGroup>
-        <TextField
+        <PasswordField
           control={control}
           name="password"
           label="New password"
-          type="password"
           autoComplete="new-password"
           autoFocus
           description="At least 10 characters, with upper and lower case letters and a number."
         />
-        <TextField
+        <PasswordField
           control={control}
           name="confirmPassword"
           label="Confirm new password"
-          type="password"
           autoComplete="new-password"
         />
 

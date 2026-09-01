@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TextField } from "@/components/forms/text-field";
+import { PasswordField } from "@/components/forms/password-field";
 import { register } from "@/app/(auth)/actions";
 import { applyServerErrors } from "@/lib/forms/apply-server-errors";
 import { registerSchema, type RegisterInput } from "@/lib/validations/auth";
@@ -84,19 +85,17 @@ export function RegisterForm() {
           autoComplete="email"
           placeholder="you@company.com"
         />
-        <TextField
+        <PasswordField
           control={control}
           name="password"
           label="Password"
-          type="password"
           autoComplete="new-password"
           description="At least 10 characters, with upper and lower case letters and a number."
         />
-        <TextField
+        <PasswordField
           control={control}
           name="confirmPassword"
           label="Confirm password"
-          type="password"
           autoComplete="new-password"
         />
 

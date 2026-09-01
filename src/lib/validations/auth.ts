@@ -69,3 +69,32 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
+
+/**
+ * Changing your own password while signed in.
+ *
+ * `currentPassword` is not something Supabase requires — `updateUser()` will
+ * change the password on the strength of the session alone. It is here because
+ * that is exactly the problem: without it, anyone who reached an unlocked
+ * browser could take the account over. Proving knowledge of the existing
+ * password is what stops that, and the Server Action verifies it for real.
+ *
+ * Lax on `currentPassword` for the same reason as login: an old account may
+ * predate the current rules.
+ */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, { error: "Enter your current password." }),
+    password,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    error: "Passwords do not match.",
+    path: ["confirmPassword"],
+  })
+  .refine((data) => data.password !== data.currentPassword, {
+    error: "Choose a password different from your current one.",
+    path: ["password"],
+  });
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

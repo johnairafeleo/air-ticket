@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { TextField } from "@/components/forms/text-field";
+import { PasswordField } from "@/components/forms/password-field";
 import { login } from "@/app/(auth)/actions";
 import { applyServerErrors } from "@/lib/forms/apply-server-errors";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
@@ -51,11 +52,10 @@ export function LoginForm({ next }: { next?: string }) {
         />
 
         <div className="space-y-2">
-          <TextField
+          <PasswordField
             control={control}
             name="password"
             label="Password"
-            type="password"
             autoComplete="current-password"
           />
           <div className="text-right">

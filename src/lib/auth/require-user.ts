@@ -127,3 +127,15 @@ export async function requireRole(role: UserRole): Promise<Session> {
 
   return session;
 }
+
+/**
+ * Does this account sign in with an email and password?
+ *
+ * A Google-only account has no password, so offering to change one would fail
+ * confusingly at re-authentication. Read from `identities` rather than
+ * `app_metadata.provider`, which reports only the provider used most recently
+ * and would misreport an account that has both linked.
+ */
+export function hasPasswordIdentity(user: User): boolean {
+  return (user.identities ?? []).some((identity) => identity.provider === "email");
+}

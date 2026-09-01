@@ -11,14 +11,19 @@ import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/layout/page-header";
 import { RoleBadge } from "@/components/layout/role-badge";
 import { ProfileForm } from "@/components/profile/profile-form";
-import { requireUser } from "@/lib/auth/require-user";
+import { ChangePasswordForm } from "@/components/profile/change-password-form";
+import { hasPasswordIdentity, requireUser } from "@/lib/auth/require-user";
 
 export const metadata: Metadata = {
   title: "Profile",
 };
 
 export default async function ProfilePage() {
-  const { profile } = await requireUser("/profile");
+  const { user, profile } = await requireUser("/profile");
+
+  // A Google-only account has no password to change; showing the form would
+  // only fail at re-authentication with a confusing message.
+  const canChangePassword = hasPasswordIdentity(user);
 
   return (
     <>
@@ -40,6 +45,31 @@ export default async function ProfilePage() {
             <ProfileForm profile={profile} />
           </CardContent>
         </Card>
+
+        {canChangePassword ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Password</CardTitle>
+              <CardDescription>
+                Changing your password requires your current one. You stay
+                signed in on this device.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChangePasswordForm />
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Password</CardTitle>
+              <CardDescription>
+                You sign in with Google, so this account has no password to
+                change. Manage it in your Google account instead.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
