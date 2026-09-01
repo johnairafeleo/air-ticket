@@ -181,7 +181,7 @@ export type Database = {
           priority: Database["public"]["Enums"]["ticket_priority"];
           status: Database["public"]["Enums"]["ticket_status"];
           created_by: string;
-          assigned_to: string | null;
+          assignee_count: number;
           created_at: string;
           updated_at: string;
           resolved_at: string | null;
@@ -199,7 +199,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["ticket_priority"];
           status?: Database["public"]["Enums"]["ticket_status"];
           created_by: string;
-          assigned_to?: string | null;
+          assignee_count?: number;
           created_at?: string;
           updated_at?: string;
           resolved_at?: string | null;
@@ -217,7 +217,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["ticket_priority"];
           status?: Database["public"]["Enums"]["ticket_status"];
           created_by?: string;
-          assigned_to?: string | null;
+          assignee_count?: number;
           created_at?: string;
           updated_at?: string;
           resolved_at?: string | null;
@@ -247,9 +247,45 @@ export type Database = {
             referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
+        ];
+      };
+      ticket_assignees: {
+        Row: {
+          ticket_id: string;
+          user_id: string;
+          assigned_at: string;
+          assigned_by: string | null;
+        };
+        Insert: {
+          ticket_id: string;
+          user_id: string;
+          assigned_at?: string;
+          assigned_by?: string | null;
+        };
+        Update: {
+          ticket_id?: string;
+          user_id?: string;
+          assigned_at?: string;
+          assigned_by?: string | null;
+        };
+        Relationships: [
           {
-            foreignKeyName: "tickets_assigned_to_fkey";
-            columns: ["assigned_to"];
+            foreignKeyName: "ticket_assignees_ticket_id_fkey";
+            columns: ["ticket_id"];
+            isOneToOne: false;
+            referencedRelation: "tickets";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ticket_assignees_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ticket_assignees_assigned_by_fkey";
+            columns: ["assigned_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
@@ -292,6 +328,11 @@ export type Database = {
       is_project_staff: { Args: { p_project: string }; Returns: boolean };
       can_manage_project: { Args: { p_project: string }; Returns: boolean };
       shares_project_with: { Args: { p_user: string }; Returns: boolean };
+      ticket_project: { Args: { p_ticket: string }; Returns: string | null };
+      project_role_of_user: {
+        Args: { p_project: string; p_user: string };
+        Returns: Database["public"]["Enums"]["project_role"] | null;
+      };
       find_user_by_email: { Args: { p_email: string }; Returns: string | null };
     };
     Enums: {

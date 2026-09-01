@@ -92,12 +92,23 @@ export const updateTicketScheduleSchema = z
     { error: "End date cannot be before the start date.", path: ["endDate"] },
   );
 
+/**
+ * The complete set of people a ticket should be assigned to.
+ *
+ * Deliberately the whole set rather than an add/remove instruction: the picker
+ * shows every assignee at once, so sending what it now reads is both simpler
+ * and idempotent. An empty list means "return it to the unassigned queue".
+ */
 export const assignTicketSchema = z.object({
   ticketId: z.uuid(),
-  // Empty string means "return to the unassigned queue".
-  assigneeId: z
-    .union([z.uuid(), z.literal("")])
-    .transform((value) => (value === "" ? null : value)),
+  assigneeIds: z
+    .array(z.uuid())
+    // A double-click or a stale form could repeat an id; the junction table's
+    // primary key would reject the batch outright, so fold duplicates here.
+    .transform((ids) => [...new Set(ids)])
+    .refine((ids) => ids.length <= 20, {
+      error: "A ticket cannot have more than 20 assignees.",
+    }),
 });
 
 /**

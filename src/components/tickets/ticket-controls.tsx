@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { TicketSchedule } from "@/components/tickets/ticket-schedule";
+import { AssigneePicker } from "@/components/tickets/assignee-picker";
+import { AssigneeNames } from "@/components/tickets/assignee-stack";
 import {
   assignTicket,
   updateTicketCategory,
@@ -32,7 +34,6 @@ import {
   type TicketWithRelations,
 } from "@/types/app";
 
-const UNASSIGNED = "__unassigned__";
 const NO_CATEGORY = "__none__";
 
 /**
@@ -65,11 +66,6 @@ export function TicketControls({
   const canAssignOthers =
     actor.isSystemAdmin || actor.projectRole === "MANAGER";
   const statuses = availableStatuses(actor, ticket.status, isOwner);
-
-  // Agents may claim or release; only a manager hands work to someone else.
-  const assignableAgents = canAssignOthers
-    ? agents
-    : agents.filter((a) => a.user_id === actor.id);
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, success: string) {
     startTransition(async () => {
@@ -194,46 +190,28 @@ export function TicketControls({
       <div className="space-y-1.5">
         <Label htmlFor="ticket-assignee" className="text-xs uppercase tracking-wide text-muted-foreground">Assigned to</Label>
         {isStaff ? (
-          <Select
-            value={ticket.assigned_to ?? UNASSIGNED}
+          <AssigneePicker
+            id="ticket-assignee"
+            // The full roster is passed, not a filtered one: the picker
+            // disables the rows an agent may not touch instead of hiding them,
+            // so a ticket someone else is on does not look empty.
+            members={agents}
+            value={ticket.assignees}
+            actorId={actor.id}
+            canAssignOthers={canAssignOthers}
             disabled={pending}
-            onValueChange={(value) =>
+            onChange={(assigneeIds) =>
               run(
-                () =>
-                  assignTicket({
-                    ticketId: ticket.id,
-                    assigneeId: value === UNASSIGNED ? "" : value,
-                  }),
-                value === UNASSIGNED
+                () => assignTicket({ ticketId: ticket.id, assigneeIds }),
+                assigneeIds.length === 0
                   ? "Returned to the unassigned queue."
                   : "Assignment updated.",
               )
             }
-          >
-            <SelectTrigger id="ticket-assignee" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-              {assignableAgents.map((agent) => (
-                <SelectItem key={agent.user_id} value={agent.user_id}>
-                  {agent.user_id === actor.id
-                    ? "Me"
-                    : (agent.profile?.full_name ??
-                      agent.profile?.email ??
-                      "Unknown")}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         ) : (
           <p className="text-sm">
-            {ticket.assignee?.full_name ??
-              ticket.assignee?.email ?? (
-                <span className="text-muted-foreground">
-                  Not yet assigned
-                </span>
-              )}
+            <AssigneeNames assignees={ticket.assignees} fallback="Not yet assigned" />
           </p>
         )}
       </div>

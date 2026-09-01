@@ -5,11 +5,10 @@ import { useDraggable } from "@dnd-kit/core";
 import { format, formatDistanceToNow } from "date-fns";
 import { CalendarDays, GripVertical } from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PriorityBadge } from "@/components/tickets/ticket-badges";
 import { TicketDetailDialog } from "@/components/tickets/ticket-detail-dialog";
 import { cn } from "@/lib/utils";
-import { initialsOf } from "@/lib/users";
+import { AssigneeStack } from "@/components/tickets/assignee-stack";
 import type {
   Category,
   ProjectMemberWithProfile,
@@ -73,18 +72,9 @@ export function TicketCard({
           {ticket.category?.name ?? "Uncategorised"}
         </span>
 
-        {ticket.assignee ? (
-          <Avatar
-            className="size-5"
-            title={ticket.assignee.full_name ?? ticket.assignee.email}
-          >
-            {ticket.assignee.avatar_url ? (
-              <AvatarImage src={ticket.assignee.avatar_url} alt="" />
-            ) : null}
-            <AvatarFallback className="text-[9px]">
-              {initialsOf(ticket.assignee)}
-            </AvatarFallback>
-          </Avatar>
+        {ticket.assignees.length > 0 ? (
+          // Two on a card; a third would start crowding the category label.
+          <AssigneeStack assignees={ticket.assignees} max={2} />
         ) : (
           <span className="text-[10px] text-muted-foreground">Unassigned</span>
         )}

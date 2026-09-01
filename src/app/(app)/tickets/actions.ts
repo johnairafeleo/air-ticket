@@ -44,11 +44,14 @@ function describeTicketError(message: string): string {
   if (message.includes("Cannot change ticket status")) {
     return "That status change isn't allowed from the ticket's current state.";
   }
-  if (message.includes("assigned to another agent")) {
-    return "This ticket is assigned to another agent.";
-  }
-  if (message.includes("Only an administrator can assign")) {
-    return "Only an administrator can assign a ticket to someone else.";
+  // Assignment is a row in ticket_assignees now, so a refused one surfaces as
+  // an RLS violation rather than a trigger message. Two distinct causes share
+  // that one Postgres error, and the policy cannot tell us which, so name both.
+  if (message.includes("ticket_assignees")) {
+    return (
+      "You can only assign yourself to a ticket, and only project staff can be " +
+      "assigned. Ask a project manager to assign someone else."
+    );
   }
   if (message.includes("must belong to a project")) {
     return "Choose a project for this ticket.";
@@ -174,26 +177,78 @@ export async function updateTicketCategory(input: unknown): Promise<ActionResult
 }
 
 /**
- * Assign, reassign, claim or release a ticket.
+ * Set exactly who a ticket is assigned to.
  *
- * An agent may only claim or release; the trigger rejects an agent handing work
- * to a third party.
+ * Takes the whole set and works out the difference, because assignment lives in
+ * a junction table now: rows to add, rows to remove, and everything already
+ * correct left alone. Untouched rows keep their original assigned_at and
+ * assigned_by, which a delete-then-reinsert would quietly destroy.
+ *
+ * Authorization is the database's, not this function's. ticket_assignees_insert
+ * and ticket_assignees_delete decide it: an agent may only add or remove
+ * themselves, a manager may act on anyone who works the project. Note the
+ * asymmetry that follows — a rejected INSERT raises, but a DELETE the policy
+ * rejects simply matches no rows and reports success, so the removal count is
+ * checked rather than assumed.
  */
 export async function assignTicket(input: unknown): Promise<ActionResult> {
-  await requireUser();
+  const { profile } = await requireUser();
 
   const parsed = assignTicketSchema.safeParse(input);
-  if (!parsed.success) return fail("Invalid request.");
+  if (!parsed.success) {
+    return fail(
+      parsed.error.issues[0]?.message ?? "Invalid request.",
+    );
+  }
 
+  const { ticketId, assigneeIds } = parsed.data;
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("tickets")
-    .update({ assigned_to: parsed.data.assigneeId })
-    .eq("id", parsed.data.ticketId);
 
-  if (error) return fail(describeTicketError(error.message));
+  const { data: current, error: readError } = await supabase
+    .from("ticket_assignees")
+    .select("user_id")
+    .eq("ticket_id", ticketId);
 
-  revalidateTicket(parsed.data.ticketId);
+  if (readError) return fail("Could not load the current assignees.");
+
+  const before = new Set((current ?? []).map((row) => row.user_id));
+  const after = new Set(assigneeIds);
+
+  const toAdd = assigneeIds.filter((id) => !before.has(id));
+  const toRemove = [...before].filter((id) => !after.has(id));
+
+  if (toAdd.length === 0 && toRemove.length === 0) return ok();
+
+  if (toRemove.length > 0) {
+    const { error, count } = await supabase
+      .from("ticket_assignees")
+      .delete({ count: "exact" })
+      .eq("ticket_id", ticketId)
+      .in("user_id", toRemove);
+
+    if (error) return fail(describeTicketError(error.message));
+
+    if ((count ?? 0) < toRemove.length) {
+      return fail(
+        "You can only remove yourself from a ticket. Ask a project manager to " +
+          "unassign someone else.",
+      );
+    }
+  }
+
+  if (toAdd.length > 0) {
+    const { error } = await supabase.from("ticket_assignees").insert(
+      toAdd.map((userId) => ({
+        ticket_id: ticketId,
+        user_id: userId,
+        assigned_by: profile.id,
+      })),
+    );
+
+    if (error) return fail(describeTicketError(error.message));
+  }
+
+  revalidateTicket(ticketId);
   return ok();
 }
 

@@ -70,12 +70,25 @@ export const TICKET_PRIORITIES = [
   "URGENT",
 ] as const satisfies readonly TicketPriority[];
 
-/** A ticket joined with the names it is displayed alongside. */
+/** Someone a ticket is assigned to. */
+export type TicketAssignee = Pick<
+  Profile,
+  "id" | "full_name" | "email" | "avatar_url"
+>;
+
+/**
+ * A ticket joined with the names it is displayed alongside.
+ *
+ * `assignees` is a list, and an empty list is what "unassigned" means — there
+ * is no null assignee any more. `assignee_count` on the ticket itself mirrors
+ * `assignees.length`; it exists so the list query can filter and sort on it
+ * without joining, and the database keeps the two in step.
+ */
 export type TicketWithRelations = Ticket & {
   project: Pick<Project, "id" | "key" | "name"> | null;
   category: Pick<Category, "id" | "name"> | null;
   creator: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;
-  assignee: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;
+  assignees: TicketAssignee[];
 };
 
 /** The planning dates, kept together since they are always edited as a pair. */

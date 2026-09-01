@@ -10,37 +10,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { initialsOf } from "@/lib/users";
+import { displayName } from "@/lib/users";
+import { AssigneeStack } from "@/components/tickets/assignee-stack";
 import { PriorityBadge, StatusBadge } from "@/components/tickets/ticket-badges";
 import type { TicketWithRelations } from "@/types/app";
-
-function PersonCell({
-  person,
-  fallback,
-}: {
-  person: TicketWithRelations["assignee"];
-  fallback: string;
-}) {
-  if (!person) {
-    return <span className="text-sm text-muted-foreground">{fallback}</span>;
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <Avatar className="size-6">
-        {person.avatar_url ? <AvatarImage src={person.avatar_url} alt="" /> : null}
-        <AvatarFallback className="text-[10px]">
-          {initialsOf(person)}
-        </AvatarFallback>
-      </Avatar>
-      <span className="truncate text-sm">
-        {person.full_name ?? person.email}
-      </span>
-    </div>
-  );
-}
 
 export function TicketTable({ tickets }: { tickets: TicketWithRelations[] }) {
   if (tickets.length === 0) {
@@ -113,7 +87,22 @@ export function TicketTable({ tickets }: { tickets: TicketWithRelations[] }) {
               </TableCell>
 
               <TableCell>
-                <PersonCell person={ticket.assignee} fallback="Unassigned" />
+                {ticket.assignees.length > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <AssigneeStack assignees={ticket.assignees} />
+                    {ticket.assignees.length === 1 ? (
+                      <span className="truncate text-sm">
+                        {displayName(ticket.assignees[0])}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">
+                        {ticket.assignees.length} people
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Unassigned</span>
+                )}
               </TableCell>
 
               <TableCell className="text-sm text-muted-foreground">
