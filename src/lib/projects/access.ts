@@ -77,8 +77,16 @@ export const listProjectMembers = cache(
 
     const { data, error } = await supabase
       .from("project_members")
+      // Both FK hints are REQUIRED since 0022 added `added_by`: with two
+      // foreign keys from this table to profiles, a bare `profiles` embed is
+      // ambiguous and PostgREST answers 300/PGRST201. Written whitespace-free
+      // for the reason documented on TICKET_SELECT in lib/tickets/queries.
       .select(
-        `*, profile:profiles ( id, full_name, email, avatar_url )`,
+        [
+          "*",
+          "profile:profiles!project_members_user_id_fkey(id,full_name,email,avatar_url)",
+          "adder:profiles!project_members_added_by_fkey(id,full_name,email,avatar_url)",
+        ].join(","),
       )
       .eq("project_id", projectId)
       .order("role", { ascending: false });

@@ -58,6 +58,51 @@ export const PROJECT_ROLE_LABELS: Record<ProjectRole, string> = {
   MANAGER: "Manager",
 };
 
+/**
+ * How this person came to be in the project.
+ *
+ * Always renders a line. An earlier version stayed silent whenever the answer
+ * was not a plain "added by someone else", which sounded tidy and was useless:
+ * on a project whose members all predate 0022 it hid every row, and the feature
+ * read as broken rather than as having nothing to say.
+ *
+ * Three distinct answers, kept distinct because they mean different things:
+ *
+ *   * added by someone else — the normal case;
+ *   * added themselves, which is what handle_new_project() records for the
+ *     person who created the project;
+ *   * not recorded — the membership predates 0022, or the service role made it.
+ *     Said out loud rather than guessed at or hidden.
+ */
+function AddedBy({ member }: { member: ProjectMemberWithProfile }) {
+  const adder = member.adder;
+
+  if (!adder) {
+    return (
+      <div
+        className="truncate text-xs text-muted-foreground/70"
+        title="This membership was created before the app started recording who added people."
+      >
+        Added by — not recorded
+      </div>
+    );
+  }
+
+  if (adder.id === member.user_id) {
+    return (
+      <div className="truncate text-xs text-muted-foreground/70">
+        Created this project
+      </div>
+    );
+  }
+
+  return (
+    <div className="truncate text-xs text-muted-foreground/80">
+      Added by {displayName(adder)}
+    </div>
+  );
+}
+
 const ROLE_HINTS: Record<ProjectRole, string> = {
   VIEWER: "Reads every ticket in the project. Changes nothing.",
   MEMBER: "Everything a manager does, except managing people.",
@@ -242,6 +287,7 @@ export function MemberManager({
                         <div className="truncate text-sm text-muted-foreground">
                           {member.profile?.email}
                         </div>
+                        <AddedBy member={member} />
                       </div>
                     </div>
                   </TableCell>

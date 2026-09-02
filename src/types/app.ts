@@ -38,6 +38,11 @@ export const PROJECT_ROLES = [
 /** A project member joined with the profile shown alongside them. */
 export type ProjectMemberWithProfile = ProjectMember & {
   profile: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;
+  /**
+   * Who added them, since 0022. Null for memberships that predate it, and for
+   * anyone added by the service role — "unknown" rather than a guess.
+   */
+  adder?: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;
 };
 
 /**
