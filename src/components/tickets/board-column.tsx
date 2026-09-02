@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { NewTicketDialog } from "@/components/tickets/new-ticket-dialog";
+import type { TicketAssigning } from "@/components/tickets/new-ticket-form";
 import { cn } from "@/lib/utils";
 import { STATUS_LABELS, STATUS_STYLES } from "@/lib/tickets/constants";
 import type { Category, Project, TicketStatus } from "@/types/app";
@@ -26,6 +27,7 @@ export function BoardColumn({
   projects,
   categories,
   canSchedule,
+  assigning,
   canAddHere,
   children,
 }: {
@@ -37,6 +39,7 @@ export function BoardColumn({
   projects: Project[];
   categories: Category[];
   canSchedule: boolean;
+  assigning?: TicketAssigning;
   /**
    * Whether a ticket created from this column would actually stay here.
    * guard_ticket_insert() pins a requester's ticket to OPEN, so offering "+"
@@ -79,6 +82,7 @@ export function BoardColumn({
           projects={projects}
           defaultProjectId={projectId}
           canSchedule={canSchedule}
+          assigning={assigning}
           defaultStatus={status}
           trigger={
             <Button

@@ -31,6 +31,7 @@ import { applyServerErrors } from "@/lib/forms/apply-server-errors";
 import {
   updateTicketDetailsSchema,
   type UpdateTicketDetailsInput,
+  type UpdateTicketDetailsValues,
 } from "@/lib/validations/ticket";
 import { initialsOf, displayName } from "@/lib/users";
 import type {
@@ -67,12 +68,12 @@ export function TicketDetailDialog({
 }) {
   const [editing, setEditing] = useState(false);
 
-  const form = useForm<UpdateTicketDetailsInput>({
+  const form = useForm<UpdateTicketDetailsInput, unknown, UpdateTicketDetailsValues>({
     resolver: zodResolver(updateTicketDetailsSchema),
     defaultValues: {
       ticketId: ticket.id,
       title: ticket.title,
-      description: ticket.description,
+      description: ticket.description ?? "",
     },
   });
 
@@ -88,11 +89,11 @@ export function TicketDetailDialog({
     reset({
       ticketId: ticket.id,
       title: ticket.title,
-      description: ticket.description,
+      description: ticket.description ?? "",
     });
   }
 
-  async function onSubmit(values: UpdateTicketDetailsInput) {
+  async function onSubmit(values: UpdateTicketDetailsValues) {
     const result = await updateTicketDetails(values);
 
     if (!result.ok) {
@@ -162,6 +163,7 @@ export function TicketDetailDialog({
                         </FieldLabel>
                         <Textarea
                           {...field}
+                          value={field.value ?? ""}
                           id="quick-description"
                           // The shadcn Textarea sets field-sizing-content and
                           // min-h-16, which override the rows attribute — the
@@ -222,9 +224,15 @@ export function TicketDetailDialog({
 
                 {/* whitespace-pre-wrap keeps the reporter's line breaks without
                     rendering their text as HTML. */}
-                <p className="min-h-24 whitespace-pre-wrap text-sm leading-relaxed">
-                  {ticket.description}
-                </p>
+                {ticket.description ? (
+                  <p className="min-h-24 whitespace-pre-wrap text-sm leading-relaxed">
+                    {ticket.description}
+                  </p>
+                ) : (
+                  <p className="min-h-24 text-sm italic text-muted-foreground">
+                    No description was given.
+                  </p>
+                )}
               </>
             )}
 

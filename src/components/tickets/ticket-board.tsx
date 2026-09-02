@@ -23,6 +23,7 @@ import {
   canTransition,
 } from "@/lib/tickets/constants";
 import { canEditTicketDetails } from "@/lib/auth/permissions";
+import type { TicketAssigning } from "@/components/tickets/new-ticket-form";
 import type { BoardData } from "@/lib/tickets/queries";
 import type {
   Category,
@@ -53,6 +54,7 @@ export function TicketBoard({
   categories,
   projects,
   projectId,
+  assigning,
 }: {
   initial: BoardData;
   actor: TicketActor;
@@ -62,6 +64,8 @@ export function TicketBoard({
   /** For the per-column "New ticket" dialogs. */
   projects: Project[];
   projectId: string;
+  /** Offers the assignee picker in each column's "New ticket" dialog. */
+  assigning?: TicketAssigning;
 }) {
   /** ticket id -> status the user dragged it to, pending server confirmation. */
   const [pending, setPending] = useState<Record<string, TicketStatus>>({});
@@ -186,6 +190,7 @@ export function TicketBoard({
               projects={projects}
               categories={categories}
               canSchedule={isStaff}
+              assigning={assigning}
               canAddHere={
                 canCreate && (isStaff || status === "OPEN")
               }
@@ -198,7 +203,7 @@ export function TicketBoard({
                   actor={actor}
                   agents={agents}
                   categories={categories}
-                  canEdit={canEditTicketDetails(actor, ticket)}
+                  canEdit={canEditTicketDetails(actor)}
                   isDragging={ticket.id === activeId}
                 />
               ))}

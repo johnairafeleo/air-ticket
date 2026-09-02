@@ -14,7 +14,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { NewTicketForm } from "@/components/tickets/new-ticket-form";
+import {
+  NewTicketForm,
+  type TicketAssigning,
+} from "@/components/tickets/new-ticket-form";
 import { STATUS_LABELS } from "@/lib/tickets/constants";
 import type { Category, Project, TicketStatus } from "@/types/app";
 
@@ -34,6 +37,7 @@ export function NewTicketDialog({
   projects,
   defaultProjectId,
   canSchedule = false,
+  assigning,
   defaultStatus,
   trigger,
 }: {
@@ -41,6 +45,8 @@ export function NewTicketDialog({
   projects: Project[];
   defaultProjectId?: string;
   canSchedule?: boolean;
+  /** Offers the assignee picker. See TicketAssigning. */
+  assigning?: TicketAssigning;
   /** Board column to create into. */
   defaultStatus?: TicketStatus;
   /** Replaces the default button — the board columns pass a compact "+". */
@@ -81,6 +87,7 @@ export function NewTicketDialog({
           projects={projects}
           defaultProjectId={defaultProjectId}
           canSchedule={canSchedule}
+          assigning={assigning}
           defaultStatus={defaultStatus}
           onCancel={() => setOpen(false)}
           onCreated={({ id, ticketNumber }) => {

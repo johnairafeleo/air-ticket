@@ -11,7 +11,11 @@ import { NewTicketDialog } from "@/components/tickets/new-ticket-dialog";
 import { requireUser } from "@/lib/auth/require-user";
 import { listCategories, listTickets } from "@/lib/tickets/queries";
 import { getActiveProject, listProjects } from "@/lib/projects/active";
-import { getTicketActor, isProjectStaff } from "@/lib/projects/access";
+import {
+  getTicketActor,
+  getTicketAssigning,
+  isProjectStaff,
+} from "@/lib/projects/access";
 import { NoProjects } from "@/components/projects/no-projects";
 import { ticketFiltersSchema } from "@/lib/validations/ticket";
 
@@ -47,6 +51,7 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
   ]);
 
   const staff = isProjectStaff(actor);
+  const assigning = await getTicketAssigning(actor, activeProject.id);
 
   const description = staff
     ? "Every ticket in this project."
@@ -67,6 +72,7 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
               projects={projects}
               defaultProjectId={activeProject.id}
               canSchedule={staff}
+              assigning={assigning}
             />
           </>
         }

@@ -28,6 +28,7 @@ import { getDashboardStats } from "@/lib/tickets/dashboard";
 import { listTickets } from "@/lib/tickets/queries";
 import { ticketFiltersSchema } from "@/lib/validations/ticket";
 import { getActiveProject, listProjects } from "@/lib/projects/active";
+import { getTicketActor, getTicketAssigning } from "@/lib/projects/access";
 import { NewTicketDialog } from "@/components/tickets/new-ticket-dialog";
 import { listCategories } from "@/lib/tickets/queries";
 import { NoProjects } from "@/components/projects/no-projects";
@@ -74,6 +75,11 @@ export default async function DashboardPage() {
     listProjects(),
   ]);
 
+  const assigning = await getTicketAssigning(
+    await getTicketActor(profile, activeProject.id),
+    activeProject.id,
+  );
+
   const isStaff = profile.role !== "USER";
   const firstName = profile.full_name?.split(" ")[0] ?? "there";
 
@@ -94,6 +100,7 @@ export default async function DashboardPage() {
               projects={projects}
               defaultProjectId={activeProject.id}
               canSchedule={profile.role !== "USER"}
+              assigning={assigning}
             />
           </>
         }

@@ -137,3 +137,33 @@ export async function listAssignableMembers(
     (m) => m.role === "MEMBER" || m.role === "AGENT" || m.role === "MANAGER",
   );
 }
+
+/**
+ * What the "New ticket" assignee picker needs, or undefined to hide it.
+ *
+ * Undefined for a viewer: they cannot be put on a ticket and cannot put anyone
+ * else on one either, so the control would only ever fail.
+ *
+ * Lives here rather than in each page so the roster and the "may I assign
+ * others" answer are always derived together — a page that fetched one without
+ * the other would render a picker that disagrees with the RLS policy.
+ */
+export async function getTicketAssigning(
+  actor: TicketActor,
+  projectId: string,
+): Promise<
+  | {
+      members: ProjectMemberWithProfile[];
+      actorId: string;
+      canAssignOthers: boolean;
+    }
+  | undefined
+> {
+  if (!isProjectStaff(actor)) return undefined;
+
+  return {
+    members: await listAssignableMembers(projectId),
+    actorId: actor.id,
+    canAssignOthers: canAssignToOthers(actor),
+  };
+}

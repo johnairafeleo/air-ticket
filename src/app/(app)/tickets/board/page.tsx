@@ -8,6 +8,7 @@ import { requireUser } from "@/lib/auth/require-user";
 import { listBoardTickets, listCategories } from "@/lib/tickets/queries";
 import {
   getTicketActor,
+  getTicketAssigning,
   isProjectStaff,
   listAssignableMembers,
 } from "@/lib/projects/access";
@@ -40,6 +41,8 @@ export default async function TicketBoardPage() {
     listProjects(),
   ]);
 
+  const assigning = await getTicketAssigning(actor, activeProject.id);
+
   // No role gate here any more: RLS already limits the board to tickets the
   // caller may see, and availableStatuses() decides which cards they can drag.
   // A member simply gets a smaller, mostly read-only board.
@@ -57,6 +60,7 @@ export default async function TicketBoardPage() {
               projects={projects}
               defaultProjectId={activeProject.id}
               canSchedule={isProjectStaff(actor)}
+              assigning={assigning}
             />
           </>
         }
@@ -65,6 +69,7 @@ export default async function TicketBoardPage() {
       <TicketBoard
         initial={board}
         actor={actor}
+        assigning={assigning}
         agents={agents}
         categories={categories}
         projects={projects}

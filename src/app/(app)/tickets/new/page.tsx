@@ -15,7 +15,11 @@ import { NewTicketForm } from "@/components/tickets/new-ticket-form";
 import { requireUser } from "@/lib/auth/require-user";
 import { listCategories } from "@/lib/tickets/queries";
 import { getActiveProjectId, listProjects } from "@/lib/projects/active";
-import { getTicketActor, isProjectStaff } from "@/lib/projects/access";
+import {
+  getTicketActor,
+  getTicketAssigning,
+  isProjectStaff,
+} from "@/lib/projects/access";
 import { NoProjects } from "@/components/projects/no-projects";
 
 export const metadata: Metadata = {
@@ -37,6 +41,11 @@ export default async function NewTicketPage() {
   const actor = activeProjectId
     ? await getTicketActor(profile, activeProjectId)
     : null;
+
+  const assigning =
+    actor && activeProjectId
+      ? await getTicketAssigning(actor, activeProjectId)
+      : undefined;
 
   // A ticket cannot exist without a project, so there is nothing to show.
   if (projects.length === 0) {
@@ -77,6 +86,7 @@ export default async function NewTicketPage() {
             projects={projects}
             defaultProjectId={activeProjectId ?? undefined}
             canSchedule={actor ? isProjectStaff(actor) : false}
+            assigning={assigning}
           />
         </CardContent>
       </Card>

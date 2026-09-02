@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TextField } from "@/components/forms/text-field";
+import { AssigneePicker } from "@/components/tickets/assignee-picker";
 import { createTicket } from "@/app/(app)/tickets/actions";
 import { applyServerErrors } from "@/lib/forms/apply-server-errors";
 import { PRIORITY_LABELS } from "@/lib/tickets/constants";
@@ -35,8 +36,24 @@ import {
   TICKET_PRIORITIES,
   type Category,
   type Project,
+  type ProjectMemberWithProfile,
   type TicketStatus,
 } from "@/types/app";
+
+/**
+ * Everything the assignee picker needs, as one prop.
+ *
+ * Bundled rather than passed as three separate props because it threads through
+ * the dialog and the board column to reach this form, and three optional props
+ * that are only meaningful together invite call sites that set some of them.
+ */
+export type TicketAssigning = {
+  /** Who may be put on a ticket here — see listAssignableMembers(). */
+  members: ProjectMemberWithProfile[];
+  actorId: string;
+  /** False for an agent, who may only put themselves on a ticket. */
+  canAssignOthers: boolean;
+};
 
 const PRIORITY_HINTS: Record<string, string> = {
   LOW: "Minor inconvenience, no deadline.",
@@ -61,11 +78,17 @@ export function NewTicketForm({
   defaultProjectId,
   canSchedule = false,
   defaultStatus,
+  assigning,
   onCreated,
   onCancel,
 }: {
   categories: Category[];
   projects: Project[];
+  /**
+   * Offers the assignee picker. Omitted for anyone who cannot be on a ticket at
+   * all (a viewer), in which case no picker is rendered and no ids are sent.
+   */
+  assigning?: TicketAssigning;
   /**
    * Whether to offer the planning dates. Staff only — guard_ticket_insert()
    * nulls them for USER callers, so showing the fields would be a lie.
@@ -98,6 +121,7 @@ export function NewTicketForm({
       startDate: "",
       endDate: "",
       status: defaultStatus,
+      assigneeIds: [],
     },
   });
 
@@ -116,6 +140,12 @@ export function NewTicketForm({
       const message = applyServerErrors(result, setError);
       if (message) toast.error(message);
       return;
+    }
+
+    // The ticket exists either way; only the assignment was refused. Say so
+    // rather than letting it look like the picker did nothing.
+    if (result.data.assigneeError) {
+      toast.warning(`Ticket created, but not assigned. ${result.data.assigneeError}`);
     }
 
     // The caller owns the success message: the dialog adds a "View" action,
@@ -148,9 +178,15 @@ export function NewTicketForm({
             name="description"
             render={({ field, fieldState }) => (
               <Field data-invalid={Boolean(fieldState.error)}>
-                <FieldLabel htmlFor="description">Description</FieldLabel>
+                <FieldLabel htmlFor="description">
+                  Description{" "}
+                  <span className="font-normal text-muted-foreground">
+                    (optional)
+                  </span>
+                </FieldLabel>
                 <Textarea
                   {...field}
+                  value={field.value ?? ""}
                   id="description"
                   // The shadcn Textarea sets field-sizing-content and min-h-16,
                   // which override the rows attribute — the floor is a class.
@@ -159,8 +195,8 @@ export function NewTicketForm({
                   aria-invalid={Boolean(fieldState.error)}
                 />
                 <FieldDescription>
-                  Include error messages and steps to reproduce — it saves a
-                  round trip.
+                  Error messages and steps to reproduce save a round trip, but
+                  you can raise the ticket without them.
                 </FieldDescription>
                 <FieldError
                   errors={fieldState.error ? [fieldState.error] : undefined}
@@ -212,7 +248,7 @@ export function NewTicketForm({
                 <FieldLabel htmlFor="categoryId" className={RAIL_LABEL}>
                   Category
                 </FieldLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value ?? ""} onValueChange={field.onChange}>
                   <SelectTrigger id="categoryId" className="w-full">
                     <SelectValue placeholder="Choose a category" />
                   </SelectTrigger>
@@ -260,6 +296,42 @@ export function NewTicketForm({
               </Field>
             )}
           />
+          {assigning ? (
+            <Controller
+              control={control}
+              name="assigneeIds"
+              render={({ field }) => (
+                <Field className="border-t pt-3">
+                  <FieldLabel htmlFor="new-assignees" className={RAIL_LABEL}>
+                    Assigned to
+                  </FieldLabel>
+                  <AssigneePicker
+                    id="new-assignees"
+                    members={assigning.members}
+                    actorId={assigning.actorId}
+                    canAssignOthers={assigning.canAssignOthers}
+                    // The picker renders people, the form stores ids. Nobody is
+                    // assigned yet, so map the chosen ids back onto the roster.
+                    value={assigning.members
+                      .filter((m) => (field.value ?? []).includes(m.user_id))
+                      .map((m) => ({
+                        id: m.user_id,
+                        full_name: m.profile?.full_name ?? null,
+                        email: m.profile?.email ?? "",
+                        avatar_url: m.profile?.avatar_url ?? null,
+                      }))}
+                    onChange={field.onChange}
+                  />
+                  <FieldDescription>
+                    {assigning.canAssignOthers
+                      ? "Optional — you can also assign it later."
+                      : "You can put yourself on this ticket."}
+                  </FieldDescription>
+                </Field>
+              )}
+            />
+          ) : null}
+
           {canSchedule ? (
             <div className="space-y-1.5 border-t pt-3">
               <FieldLabel className={RAIL_LABEL}>Schedule</FieldLabel>

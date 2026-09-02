@@ -30,6 +30,7 @@ import { applyServerErrors } from "@/lib/forms/apply-server-errors";
 import {
   updateTicketDetailsSchema,
   type UpdateTicketDetailsInput,
+  type UpdateTicketDetailsValues,
 } from "@/lib/validations/ticket";
 import type { TicketWithRelations } from "@/types/app";
 
@@ -50,12 +51,12 @@ export function EditTicketDialog({
 }) {
   const [open, setOpen] = useState(false);
 
-  const form = useForm<UpdateTicketDetailsInput>({
+  const form = useForm<UpdateTicketDetailsInput, unknown, UpdateTicketDetailsValues>({
     resolver: zodResolver(updateTicketDetailsSchema),
     defaultValues: {
       ticketId: ticket.id,
       title: ticket.title,
-      description: ticket.description,
+      description: ticket.description ?? "",
     },
   });
 
@@ -67,7 +68,7 @@ export function EditTicketDialog({
     formState: { isSubmitting },
   } = form;
 
-  async function onSubmit(values: UpdateTicketDetailsInput) {
+  async function onSubmit(values: UpdateTicketDetailsValues) {
     const result = await updateTicketDetails(values);
 
     if (!result.ok) {
@@ -91,7 +92,7 @@ export function EditTicketDialog({
           reset({
             ticketId: ticket.id,
             title: ticket.title,
-            description: ticket.description,
+            description: ticket.description ?? "",
           });
         }
       }}
@@ -137,6 +138,7 @@ export function EditTicketDialog({
                   <FieldLabel htmlFor="edit-description">Description</FieldLabel>
                   <Textarea
                     {...field}
+                    value={field.value ?? ""}
                     id="edit-description"
                     className="min-h-72"
                     aria-invalid={Boolean(fieldState.error)}

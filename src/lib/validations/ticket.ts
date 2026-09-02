@@ -9,10 +9,37 @@ import { TICKET_PRIORITIES, TICKET_STATUSES } from "@/types/app";
  * that passes here cannot be rejected by the database for length.
  */
 
+/**
+ * Every "optional" field here must survive being parsed TWICE.
+ *
+ * The client resolver parses the form values, so `onSubmit` already holds the
+ * transformed output; that output is then sent to the Server Action, which
+ * re-validates it with this same schema. So a transform whose input type does
+ * not include its own output type fails on the second pass — `"" -> null` then
+ * `null -> "Invalid input: expected string, received null"`.
+ *
+ * Accepting null on the way in makes each transform idempotent, which is what
+ * the re-validation actually requires.
+ */
+
 /** An empty string from a date input means "cleared". */
 const optionalDate = z
-  .union([z.iso.date(), z.literal("")])
+  .union([z.iso.date(), z.literal(""), z.null()])
   .transform((value) => (value === "" ? null : value));
+
+/**
+ * The set of people on a ticket.
+ *
+ * Shared by create and assign so the two cannot drift: both fold duplicates
+ * (a double-click or a stale form could repeat an id, and the junction table's
+ * primary key would reject the whole batch) and both cap the list at 20.
+ */
+const assigneeIds = z
+  .array(z.uuid())
+  .transform((ids) => [...new Set(ids)])
+  .refine((ids) => ids.length <= 20, {
+    error: "A ticket cannot have more than 20 assignees.",
+  });
 
 export const createTicketSchema = z
   .object({
@@ -27,10 +54,13 @@ export const createTicketSchema = z
     description: z
       .string()
       .trim()
-      .min(10, { error: "Describe the problem in at least 10 characters." })
-      .max(10000, { error: "Description must be 10,000 characters or fewer." }),
+      .max(10000, { error: "Description must be 10,000 characters or fewer." })
+      // Optional since 0018. An untouched textarea gives "", the re-parse on
+      // the server gives null; both mean "no description".
+      .nullable()
+      .transform((value) => (value === "" || value === null ? null : value)),
     categoryId: z
-      .union([z.uuid({ error: "Choose a category." }), z.literal("")])
+      .union([z.uuid({ error: "Choose a category." }), z.literal(""), z.null()])
       .transform((value) => (value === "" ? null : value)),
     priority: z.enum(TICKET_PRIORITIES, { error: "Choose a priority." }),
     // Staff-only. guard_ticket_insert() nulls these for USER callers, so the
@@ -40,6 +70,10 @@ export const createTicketSchema = z
     // Which board column to create into. Staff only — the insert guard pins a
     // requester's ticket to OPEN regardless of what is sent.
     status: z.enum(TICKET_STATUSES).optional(),
+    // Optional, and empty for anyone who cannot assign. These become rows in
+    // ticket_assignees AFTER the ticket exists — guard_ticket_insert() forces
+    // assignee_count to 0, so assignment can never ride along on the insert.
+    assigneeIds: assigneeIds.optional().default([]),
   })
   .refine(
     (data) =>
@@ -57,8 +91,11 @@ export const updateTicketDetailsSchema = z.object({
   description: z
     .string()
     .trim()
-    .min(10, { error: "Describe the problem in at least 10 characters." })
-    .max(10000, { error: "Description must be 10,000 characters or fewer." }),
+    .max(10000, { error: "Description must be 10,000 characters or fewer." })
+    // Optional since 0018. An untouched textarea gives "", the re-parse on the
+    // server gives null; both mean "no description".
+    .nullable()
+    .transform((value) => (value === "" || value === null ? null : value)),
 });
 
 export const updateTicketStatusSchema = z.object({
@@ -101,14 +138,7 @@ export const updateTicketScheduleSchema = z
  */
 export const assignTicketSchema = z.object({
   ticketId: z.uuid(),
-  assigneeIds: z
-    .array(z.uuid())
-    // A double-click or a stale form could repeat an id; the junction table's
-    // primary key would reject the batch outright, so fold duplicates here.
-    .transform((ids) => [...new Set(ids)])
-    .refine((ids) => ids.length <= 20, {
-      error: "A ticket cannot have more than 20 assignees.",
-    }),
+  assigneeIds,
 });
 
 /**
@@ -146,7 +176,10 @@ export const ticketFiltersSchema = z.object({
 
 export type CreateTicketInput = z.input<typeof createTicketSchema>;
 export type CreateTicketValues = z.output<typeof createTicketSchema>;
-export type UpdateTicketDetailsInput = z.infer<typeof updateTicketDetailsSchema>;
+// Input and output differ: description is a string in the textarea and null in
+// the payload once "" has been transformed away.
+export type UpdateTicketDetailsInput = z.input<typeof updateTicketDetailsSchema>;
+export type UpdateTicketDetailsValues = z.output<typeof updateTicketDetailsSchema>;
 export type UpdateTicketScheduleInput = z.input<typeof updateTicketScheduleSchema>;
 export type UpdateTicketScheduleValues = z.output<typeof updateTicketScheduleSchema>;
 export type TicketFilters = z.output<typeof ticketFiltersSchema>;

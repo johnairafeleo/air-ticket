@@ -39,8 +39,27 @@ function revalidateTicket(ticketId: string) {
   revalidatePath("/dashboard");
 }
 
-/** Turn a Postgres exception from the guard triggers into something readable. */
+/**
+ * Turn a Postgres exception from the guard triggers into something readable.
+ *
+ * The raw message is deliberately never returned to the client — it names
+ * columns, constraints and policies — but it IS logged. Without that the
+ * fallback below is a dead end: "Could not apply that change" with the only
+ * evidence discarded, which is exactly the wrong trade when the cause is an
+ * unapplied migration rather than anything the user did.
+ */
 function describeTicketError(message: string): string {
+  console.error(`[tickets] Postgres refused the change: ${message}`);
+
+  // A column the app now treats as optional is still NOT NULL in the database.
+  // Far and away the likeliest cause is a migration that has not been run.
+  if (message.includes("null value in column")) {
+    const column = /null value in column "([^"]+)"/.exec(message)?.[1];
+    return (
+      `The database still requires ${column ? `"${column}"` : "a value"} here. ` +
+      "A migration is probably missing — check supabase/migrations."
+    );
+  }
   if (message.includes("Cannot change ticket status")) {
     return "That status change isn't allowed from the ticket's current state.";
   }
@@ -83,7 +102,14 @@ function describeTicketError(message: string): string {
  */
 export async function createTicket(
   input: unknown,
-): Promise<ActionResult<{ id: string; ticketNumber: string }>> {
+): Promise<
+  ActionResult<{
+    id: string;
+    ticketNumber: string;
+    /** Non-null when the ticket was created but the assignment was refused. */
+    assigneeError: string | null;
+  }>
+> {
   const { profile } = await requireUser();
 
   const parsed = createTicketSchema.safeParse(input);
@@ -118,8 +144,32 @@ export async function createTicket(
     );
   }
 
+  // Assignment is a second write by necessity: guard_ticket_insert() pins
+  // assignee_count to 0, so there is no way to create a ticket that already has
+  // people on it. RLS on ticket_assignees decides who may actually be added.
+  let assigneeError: string | null = null;
+
+  if (parsed.data.assigneeIds.length > 0) {
+    const { error: assignError } = await supabase.from("ticket_assignees").insert(
+      parsed.data.assigneeIds.map((userId) => ({
+        ticket_id: data.id,
+        user_id: userId,
+      })),
+    );
+
+    // The ticket is deliberately kept. It exists, it has consumed a number from
+    // the project's counter, and the text the user wrote is in it — throwing
+    // that away because the assignment was refused would be the worse outcome.
+    // Report it instead and let them assign from the ticket itself.
+    if (assignError) assigneeError = describeTicketError(assignError.message);
+  }
+
   revalidateTicket(data.id);
-  return ok({ id: data.id, ticketNumber: data.ticket_number });
+  return ok({
+    id: data.id,
+    ticketNumber: data.ticket_number,
+    assigneeError,
+  });
 }
 
 export async function updateTicketStatus(input: unknown): Promise<ActionResult> {

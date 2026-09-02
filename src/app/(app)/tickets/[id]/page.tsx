@@ -59,7 +59,7 @@ export default async function TicketDetailPage(
     : [[], []];
 
   const isOwner = ticket.created_by === profile.id;
-  const canEdit = canEditTicketDetails(actor, ticket);
+  const canEdit = canEditTicketDetails(actor);
 
   return (
     <>
@@ -111,9 +111,15 @@ export default async function TicketDetailPage(
             <CardContent>
               {/* whitespace-pre-wrap preserves the reporter's line breaks
                   without rendering their input as HTML. */}
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                {ticket.description}
-              </p>
+              {ticket.description ? (
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {ticket.description}
+                </p>
+              ) : (
+                <p className="text-sm italic text-muted-foreground">
+                  No description was given.
+                </p>
+              )}
             </CardContent>
           </Card>
 

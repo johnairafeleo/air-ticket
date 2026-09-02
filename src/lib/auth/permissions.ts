@@ -1,4 +1,4 @@
-import type { Profile, Ticket, TicketActor, UserRole } from "@/types/app";
+import type { Profile, TicketActor, UserRole } from "@/types/app";
 
 /**
  * Pure permission predicates.
@@ -84,17 +84,14 @@ export function canViewAllTickets(profile: Profile): boolean {
  *   VIEWER                    never.
  *
  * MEMBER was restricted to its own tickets, and only while still OPEN, until
- * 0017 made it a project administrator. The `ticket` argument is now unused for
- * the decision and kept only so callers need not change; it is still the right
- * shape if a per-ticket rule comes back.
+ * 0017 made it a project administrator. That removed the last rule that
+ * depended on the ticket itself, so this now takes only the actor — add the
+ * ticket back if a per-ticket rule ever returns.
  *
  * The database enforces all of this regardless; this only decides whether to
  * offer the button.
  */
-export function canEditTicketDetails(
-  actor: TicketActor,
-  _ticket: Pick<Ticket, "created_by" | "status">,
-): boolean {
+export function canEditTicketDetails(actor: TicketActor): boolean {
   if (actor.isSystemAdmin) return true;
   return (
     actor.projectRole === "MEMBER" ||
