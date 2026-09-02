@@ -77,27 +77,28 @@ export function canViewAllTickets(profile: Profile): boolean {
 /**
  * Whether `actor` may edit a ticket's title and description.
  *
- * Mirrors `guard_ticket_change()`, which since 0009 keys off the project role:
+ * Mirrors `guard_ticket_change()`, which keys off the project role:
  *
- *   system ADMIN     always.
- *   AGENT / MANAGER  any ticket in the project.
- *   MEMBER           only their own, and only while still OPEN. Once work has
- *                    started, the wording is part of the record.
- *   VIEWER           never.
+ *   system ADMIN              always.
+ *   MEMBER / AGENT / MANAGER  any ticket in the project.
+ *   VIEWER                    never.
+ *
+ * MEMBER was restricted to its own tickets, and only while still OPEN, until
+ * 0017 made it a project administrator. The `ticket` argument is now unused for
+ * the decision and kept only so callers need not change; it is still the right
+ * shape if a per-ticket rule comes back.
  *
  * The database enforces all of this regardless; this only decides whether to
  * offer the button.
  */
 export function canEditTicketDetails(
   actor: TicketActor,
-  ticket: Pick<Ticket, "created_by" | "status">,
+  _ticket: Pick<Ticket, "created_by" | "status">,
 ): boolean {
   if (actor.isSystemAdmin) return true;
-  if (actor.projectRole === "AGENT" || actor.projectRole === "MANAGER") {
-    return true;
-  }
-  if (actor.projectRole === "MEMBER") {
-    return ticket.created_by === actor.id && ticket.status === "OPEN";
-  }
-  return false;
+  return (
+    actor.projectRole === "MEMBER" ||
+    actor.projectRole === "AGENT" ||
+    actor.projectRole === "MANAGER"
+  );
 }

@@ -57,17 +57,34 @@ export async function getTicketActor(
   };
 }
 
-/** Works the queue: AGENT, MANAGER, or a system admin. */
+/** Works the queue: MEMBER, AGENT, MANAGER, or a system admin. */
 export function isProjectStaff(actor: TicketActor): boolean {
   return (
     actor.isSystemAdmin ||
+    actor.projectRole === "MEMBER" ||
     actor.projectRole === "AGENT" ||
     actor.projectRole === "MANAGER"
   );
 }
 
-/** Administers the project and its membership. */
+/**
+ * Administers the project itself: settings, and handing work to other people.
+ *
+ * Since 0017 this does NOT include membership. The two were one predicate until
+ * MEMBER was widened, at which point keeping them merged would have handed
+ * every member the ability to add and remove people. Use canManageMembers() for
+ * anything that changes who is in the project.
+ */
 export function canManageProject(actor: TicketActor): boolean {
+  return (
+    actor.isSystemAdmin ||
+    actor.projectRole === "MEMBER" ||
+    actor.projectRole === "MANAGER"
+  );
+}
+
+/** Adds and removes people, and changes their roles. MANAGER or system admin. */
+export function canManageMembers(actor: TicketActor): boolean {
   return actor.isSystemAdmin || actor.projectRole === "MANAGER";
 }
 
@@ -81,7 +98,7 @@ export function canCreateTickets(actor: TicketActor): boolean {
   );
 }
 
-/** Only a manager (or system admin) may hand work to someone else. */
+/** Hands work to someone else. Mirrors ticket_assignees_insert. */
 export function canAssignToOthers(actor: TicketActor): boolean {
   return canManageProject(actor);
 }
@@ -105,16 +122,18 @@ export const listProjectMembers = cache(
 );
 
 /**
- * Members who can be assigned tickets — agents and managers.
+ * Members who can be assigned tickets — everyone except viewers.
  *
- * Replaces the old global "all AGENT/ADMIN profiles" list: assignment is now
- * scoped to the project, so someone who works another project is not offered.
+ * Assignment is scoped to the project, so someone who works another project is
+ * not offered. MEMBER joined this list in 0017; the matching target check lives
+ * in the ticket_assignees_insert policy, and the two must agree or the picker
+ * will offer people the database then refuses.
  */
 export async function listAssignableMembers(
   projectId: string,
 ): Promise<ProjectMemberWithProfile[]> {
   const members = await listProjectMembers(projectId);
   return members.filter(
-    (m) => m.role === "AGENT" || m.role === "MANAGER",
+    (m) => m.role === "MEMBER" || m.role === "AGENT" || m.role === "MANAGER",
   );
 }

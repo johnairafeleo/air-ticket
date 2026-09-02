@@ -15,7 +15,7 @@ import { NoProjects } from "@/components/projects/no-projects";
 import { requireUser } from "@/lib/auth/require-user";
 import { getActiveProject } from "@/lib/projects/active";
 import {
-  canManageProject,
+  canManageMembers,
   getTicketActor,
   listProjectMembers,
 } from "@/lib/projects/access";
@@ -61,7 +61,7 @@ export default async function ProjectMembersPage() {
         </CardHeader>
 
         <CardContent>
-          {canManageProject(actor) ? (
+          {canManageMembers(actor) ? (
             <MemberManager
               projectId={activeProject.id}
               members={members}

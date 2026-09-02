@@ -10,13 +10,18 @@ Getting Air Ticket running against a hosted Supabase project.
 `createClient()` throws `Node.js detected but native WebSocket not found`, because
 `realtime-js` needs the global `WebSocket` that only exists from Node 22.
 
-This machine has Node 22.12.0 installed under nvm-windows but not selected. Switch to it
-from an **Administrator** terminal (nvm-windows re-points a symlink, which needs elevation):
+This machine has Node 22.23.1 installed under nvm-windows but not selected. Switch to it
+from an **Administrator** terminal:
 
 ```powershell
-nvm use 22.12.0
+nvm use 22.23.1
 node --version   # must print v22.x or newer
 ```
+
+Elevation is not optional, and the failure mode is nasty: nvm-windows re-points the
+`C:\Program Files\nodejs` symlink, and without Administrator rights it **prints nothing
+and exits 0** while leaving the old version selected. Confirm with `node --version`
+rather than trusting the exit code.
 
 Then reinstall dependencies so native/optional packages match the runtime:
 
@@ -83,7 +88,7 @@ started the flow, because the `code_verifier` lives in a cookie there — so ope
 email on a phone or a second browser fails.
 
 `/auth/confirm` uses the `token_hash` flow instead, which has no such constraint. That
-requires editing two templates.
+requires editing three templates.
 
 **Confirm signup** — set the link to:
 
@@ -97,11 +102,39 @@ requires editing two templates.
 {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password
 ```
 
-Without these edits every confirmation and reset link lands on the "link is not valid"
+**Invite user** — sent by **Members → Add member** when the address has no account yet.
+Set the link to:
+
+```
+{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/reset-password
+```
+
+An invited account is created with no password, so `next` must be `/reset-password` —
+that page sets one against the session `/auth/confirm` just established. Sending them to
+`/dashboard` instead leaves them signed in but unable to ever sign in again. The
+cross-device argument applies with extra force here: an invitation is emailed to someone
+who has never used the app, so it is the link least likely to be opened in the browser
+that would hold a PKCE verifier.
+
+Without these edits every confirmation, reset and invitation link lands on the "link is not valid"
 page, because no `token_hash` reaches the handler.
 
-> Supabase's built-in SMTP is rate limited to a handful of emails per hour. That is fine
-> for development; configure a real SMTP provider before going live.
+### Custom SMTP — needed sooner than you would expect
+
+The built-in sender is not merely rate limited, it is **restricted by recipient**: without
+a custom SMTP provider, Supabase Auth refuses to deliver to any address that is not a
+member of the project's Supabase organization, and allows **2 messages per hour** in
+total. It is explicitly best-effort with no delivery SLA.
+
+That is survivable for signup while you are testing with your own accounts, but it makes
+**Members → Add member** unusable for its actual purpose, since the whole point is emailing
+someone outside the team. `addProjectMember()` surfaces this as a specific message naming
+custom SMTP, because retrying can never succeed.
+
+Configure one under **Project Settings → Authentication → SMTP Settings**. Resend, AWS SES,
+Postmark, SendGrid and Brevo all work; you verify a sending domain and paste the SMTP
+username and password. Raise the rate limit afterwards under **Authentication → Rate
+Limits**, which stays at the default until you change it.
 
 ### Google sign-in
 

@@ -60,9 +60,9 @@ export const PROJECT_ROLE_LABELS: Record<ProjectRole, string> = {
 
 const ROLE_HINTS: Record<ProjectRole, string> = {
   VIEWER: "Reads every ticket in the project. Changes nothing.",
-  MEMBER: "Raises tickets and sees only their own.",
+  MEMBER: "Everything a manager does, except managing people.",
   AGENT: "Works the queue: status, priority, category, scheduling.",
-  MANAGER: "Everything an agent does, plus membership and project settings.",
+  MANAGER: "Everything a member does, plus adding and removing people.",
 };
 
 /**
