@@ -182,6 +182,7 @@ export type Database = {
           status: Database["public"]["Enums"]["ticket_status"];
           created_by: string;
           assignee_count: number;
+          deleted_at: string | null;
           created_at: string;
           updated_at: string;
           resolved_at: string | null;
@@ -200,6 +201,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["ticket_status"];
           created_by: string;
           assignee_count?: number;
+          deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
           resolved_at?: string | null;
@@ -218,6 +220,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["ticket_status"];
           created_by?: string;
           assignee_count?: number;
+          deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
           resolved_at?: string | null;

@@ -8,6 +8,7 @@ import { fail, ok, zodFieldErrors, type ActionResult } from "@/lib/actions/resul
 import {
   assignTicketSchema,
   createTicketSchema,
+  deleteTicketSchema,
   updateTicketCategorySchema,
   updateTicketDetailsSchema,
   updateTicketPrioritySchema,
@@ -344,6 +345,46 @@ export async function updateTicketDetails(input: unknown): Promise<ActionResult>
     .eq("id", parsed.data.ticketId);
 
   if (error) return fail(describeTicketError(error.message));
+
+  revalidateTicket(parsed.data.ticketId);
+  return ok();
+}
+
+/**
+ * Delete a ticket — a soft delete since 0020.
+ *
+ * Stamps `deleted_at` instead of removing the row, so the ticket disappears
+ * from every list, board and dashboard count but can be brought back. There is
+ * no hard delete through the API any more; a permanent purge is a service-role
+ * or SQL-editor operation.
+ *
+ * Authorization is `guard_ticket_change()`: project administrators may delete
+ * any ticket, the creator may delete their own while it is still OPEN. The
+ * trigger raises rather than silently ignoring, so unlike the DELETE it
+ * replaced, a refusal arrives as a real error.
+ *
+ * The zero-row check is still needed for a different reason: a ticket that is
+ * already deleted, or that RLS hides from this caller, matches nothing and
+ * updates nothing without erroring.
+ */
+export async function deleteTicket(input: unknown): Promise<ActionResult> {
+  await requireUser();
+
+  const parsed = deleteTicketSchema.safeParse(input);
+  if (!parsed.success) return fail("Invalid request.");
+
+  const supabase = await createClient();
+  const { error, count } = await supabase
+    .from("tickets")
+    .update({ deleted_at: new Date().toISOString() }, { count: "exact" })
+    .eq("id", parsed.data.ticketId)
+    .is("deleted_at", null);
+
+  if (error) return fail(describeTicketError(error.message));
+
+  if ((count ?? 0) === 0) {
+    return fail("That ticket no longer exists, or you cannot delete it.");
+  }
 
   revalidateTicket(parsed.data.ticketId);
   return ok();

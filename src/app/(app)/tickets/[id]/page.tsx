@@ -19,7 +19,11 @@ import { initialsOf } from "@/lib/users";
 import { PriorityBadge, StatusBadge } from "@/components/tickets/ticket-badges";
 import { TicketControls } from "@/components/tickets/ticket-controls";
 import { EditTicketDialog } from "@/components/tickets/edit-ticket-dialog";
-import { canEditTicketDetails } from "@/lib/auth/permissions";
+import { DeleteTicketButton } from "@/components/tickets/delete-ticket-button";
+import {
+  canDeleteTicket,
+  canEditTicketDetails,
+} from "@/lib/auth/permissions";
 import { requireUser } from "@/lib/auth/require-user";
 import { getTicket, listCategories } from "@/lib/tickets/queries";
 import {
@@ -60,6 +64,7 @@ export default async function TicketDetailPage(
 
   const isOwner = ticket.created_by === profile.id;
   const canEdit = canEditTicketDetails(actor);
+  const canDelete = canDeleteTicket(actor, ticket);
 
   return (
     <>
@@ -70,12 +75,22 @@ export default async function TicketDetailPage(
           { addSuffix: true },
         )}`}
         actions={
-          <Button variant="outline" asChild>
-            <Link href="/tickets">
-              <ArrowLeft aria-hidden />
-              Back
-            </Link>
-          </Button>
+          <>
+            {canDelete ? (
+              <DeleteTicketButton
+                ticketId={ticket.id}
+                ticketNumber={ticket.ticket_number}
+                // This page is about to stop existing, so it cannot stay put.
+                redirectTo="/tickets"
+              />
+            ) : null}
+            <Button variant="outline" asChild>
+              <Link href="/tickets">
+                <ArrowLeft aria-hidden />
+                Back
+              </Link>
+            </Button>
+          </>
         }
       />
 

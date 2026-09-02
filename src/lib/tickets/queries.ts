@@ -24,6 +24,21 @@ import type { TicketFilters } from "@/lib/validations/ticket";
 export const TICKETS_PER_PAGE = 20;
 
 /**
+ * SOFT_DELETE — every read in this file filters `deleted_at is null`.
+ *
+ * Since 0020 deleting a ticket sets `deleted_at` rather than removing the row,
+ * and the database does NOT hide those rows for you: `tickets_select` is
+ * deliberately unchanged so a "deleted tickets" view stays possible without
+ * another policy change. The consequence is that this filter is the only thing
+ * keeping deleted tickets out of the UI.
+ *
+ * So: any new query against `tickets` needs `.is("deleted_at", null)`. There
+ * are three reads here and the `visible` CTE inside `dashboard_stats()`; those
+ * four are the complete set, and they must stay in agreement or one screen will
+ * count a ticket another screen says is gone.
+ */
+
+/**
  * The joined shape every list and detail view renders.
  *
  * Written as parts joined with commas, NOT as a pretty multi-line template.
@@ -88,7 +103,9 @@ export async function listTickets(
       { count: "exact" },
     )
     .order("created_at", { ascending: false })
-    .range(from, from + TICKETS_PER_PAGE - 1);
+    .range(from, from + TICKETS_PER_PAGE - 1)
+    // Soft-deleted tickets are hidden from every read. See SOFT_DELETE below.
+    .is("deleted_at", null);
 
   // Status and priority are lists so a filter can express "high or urgent" and
   // "not closed" — the combinations the dashboard cards count.
@@ -151,6 +168,7 @@ export async function getTicket(id: string): Promise<TicketWithRelations | null>
     .from("tickets")
     .select(TICKET_SELECT)
     .eq("id", id)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (error || !data) return null;
@@ -190,7 +208,8 @@ export async function listBoardTickets(
       let query = supabase
         .from("tickets")
         .select(TICKET_SELECT, { count: "exact" })
-        .eq("status", status);
+        .eq("status", status)
+        .is("deleted_at", null);
 
       if (projectId) query = query.eq("project_id", projectId);
 

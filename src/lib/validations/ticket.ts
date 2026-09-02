@@ -174,6 +174,10 @@ export const ticketFiltersSchema = z.object({
   page: z.coerce.number().int().min(1).max(1000).default(1),
 });
 
+export const deleteTicketSchema = z.object({
+  ticketId: z.uuid(),
+});
+
 export type CreateTicketInput = z.input<typeof createTicketSchema>;
 export type CreateTicketValues = z.output<typeof createTicketSchema>;
 // Input and output differ: description is a string in the textarea and null in

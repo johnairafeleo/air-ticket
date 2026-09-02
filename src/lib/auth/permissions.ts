@@ -1,4 +1,4 @@
-import type { Profile, TicketActor, UserRole } from "@/types/app";
+import type { Profile, Ticket, TicketActor, UserRole } from "@/types/app";
 
 /**
  * Pure permission predicates.
@@ -98,4 +98,31 @@ export function canEditTicketDetails(actor: TicketActor): boolean {
     actor.projectRole === "AGENT" ||
     actor.projectRole === "MANAGER"
   );
+}
+
+/**
+ * Whether `actor` may delete this ticket.
+ *
+ * Mirrors the `tickets_delete` policy from 0019:
+ *
+ *   system ADMIN       always.
+ *   MEMBER / MANAGER   any ticket in the project — they administer it.
+ *   the creator        their own, but only while it is still OPEN.
+ *   AGENT / VIEWER     never, unless it is their own and still OPEN.
+ *
+ * Note an AGENT works the queue but does not administer the project, so an
+ * agent cannot delete other people's tickets. That is deliberate and matches
+ * the policy; deletion is destructive in a way that changing a status is not.
+ */
+export function canDeleteTicket(
+  actor: TicketActor,
+  ticket: Pick<Ticket, "created_by" | "status">,
+): boolean {
+  if (actor.isSystemAdmin) return true;
+
+  if (actor.projectRole === "MEMBER" || actor.projectRole === "MANAGER") {
+    return true;
+  }
+
+  return ticket.created_by === actor.id && ticket.status === "OPEN";
 }
