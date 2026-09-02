@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
+import { RelativeTime } from "@/components/common/relative-time";
 import { CalendarDays, GripVertical } from "lucide-react";
 
 import { PriorityBadge } from "@/components/tickets/ticket-badges";
@@ -81,9 +82,7 @@ export function TicketCard({
       </div>
 
       <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-        <span>
-          {formatDistanceToNow(new Date(ticket.updated_at), { addSuffix: true })}
-        </span>
+        <RelativeTime value={ticket.updated_at} />
         {ticket.end_date ? (
           <span className="flex items-center gap-1">
             <CalendarDays className="size-3" aria-hidden />

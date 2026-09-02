@@ -23,6 +23,7 @@ import {
   canTransition,
 } from "@/lib/tickets/constants";
 import { canEditTicketDetails } from "@/lib/auth/permissions";
+import { canCreateTickets, isProjectStaff } from "@/lib/projects/roles";
 import type { TicketAssigning } from "@/components/tickets/new-ticket-form";
 import type { BoardData } from "@/lib/tickets/queries";
 import type {
@@ -107,21 +108,15 @@ export function TicketBoard({
     return out;
   }, [initial, pending]);
 
-  const isStaff =
-    actor.isSystemAdmin ||
-    actor.projectRole === "AGENT" ||
-    actor.projectRole === "MANAGER";
-  // A VIEWER cannot raise tickets at all; a MEMBER can, but only into OPEN.
-  const canCreate = isStaff || actor.projectRole === "MEMBER";
+  const isStaff = isProjectStaff(actor);
+  // A VIEWER cannot raise tickets at all. Everyone else is staff since 0017.
+  const canCreate = canCreateTickets(actor);
 
   const allTickets = BOARD_COLUMNS.flatMap((s) => board[s].tickets);
   const activeTicket = allTickets.find((t) => t.id === activeId) ?? null;
 
   function isDraggable(ticket: TicketWithRelations): boolean {
-    return (
-      availableStatuses(actor, ticket.status, ticket.created_by === actor.id)
-        .length > 0
-    );
+    return availableStatuses(actor, ticket.status).length > 0;
   }
 
   function handleDragStart(event: DragStartEvent) {

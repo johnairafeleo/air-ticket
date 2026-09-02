@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { TicketSchedule } from "@/components/tickets/ticket-schedule";
 import { AssigneePicker } from "@/components/tickets/assignee-picker";
 import { AssigneeNames } from "@/components/tickets/assignee-stack";
+import { canAssignToOthers, isProjectStaff } from "@/lib/projects/roles";
 import {
   assignTicket,
   updateTicketCategory,
@@ -58,14 +59,9 @@ export function TicketControls({
 }) {
   const [pending, startTransition] = useTransition();
 
-  const isOwner = ticket.created_by === actor.id;
-  const isStaff =
-    actor.isSystemAdmin ||
-    actor.projectRole === "AGENT" ||
-    actor.projectRole === "MANAGER";
-  const canAssignOthers =
-    actor.isSystemAdmin || actor.projectRole === "MANAGER";
-  const statuses = availableStatuses(actor, ticket.status, isOwner);
+  const isStaff = isProjectStaff(actor);
+  const canAssignOthers = canAssignToOthers(actor);
+  const statuses = availableStatuses(actor, ticket.status);
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, success: string) {
     startTransition(async () => {

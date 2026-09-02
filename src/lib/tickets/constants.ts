@@ -1,3 +1,4 @@
+import { isProjectStaff } from "@/lib/projects/roles";
 import type { TicketActor, TicketPriority, TicketStatus } from "@/types/app";
 
 /**
@@ -102,19 +103,11 @@ export function canTransition(from: TicketStatus, to: TicketStatus): boolean {
 export function availableStatuses(
   actor: TicketActor,
   current: TicketStatus,
-  isOwner: boolean,
 ): readonly TicketStatus[] {
-  const isStaff =
-    actor.isSystemAdmin ||
-    actor.projectRole === "AGENT" ||
-    actor.projectRole === "MANAGER";
+  if (isProjectStaff(actor)) return TRANSITIONS[current];
 
-  if (isStaff) return TRANSITIONS[current];
-
-  if (actor.projectRole === "MEMBER") {
-    return isOwner && current === "RESOLVED" ? ["CLOSED"] : [];
-  }
-
-  // VIEWER, or not a member at all.
+  // VIEWER, or not a member at all. MEMBER used to land here with a single
+  // "close my own resolved ticket" option; 0017 made it staff, so it is caught
+  // above and `isOwner` no longer affects the answer.
   return [];
 }

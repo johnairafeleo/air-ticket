@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { createClient } from "@/lib/supabase/server";
+import { canAssignToOthers, isProjectStaff } from "@/lib/projects/roles";
 import type {
   Profile,
   ProjectMemberWithProfile,
@@ -57,51 +58,17 @@ export async function getTicketActor(
   };
 }
 
-/** Works the queue: MEMBER, AGENT, MANAGER, or a system admin. */
-export function isProjectStaff(actor: TicketActor): boolean {
-  return (
-    actor.isSystemAdmin ||
-    actor.projectRole === "MEMBER" ||
-    actor.projectRole === "AGENT" ||
-    actor.projectRole === "MANAGER"
-  );
-}
+// The pure role predicates live in ./roles so Client Components can import
+// them too — see that file for why the split exists. Re-exported here because
+// most server callers want them alongside the queries below.
+export {
+  canAssignToOthers,
+  canCreateTickets,
+  canManageMembers,
+  canManageProject,
+  isProjectStaff,
+} from "@/lib/projects/roles";
 
-/**
- * Administers the project itself: settings, and handing work to other people.
- *
- * Since 0017 this does NOT include membership. The two were one predicate until
- * MEMBER was widened, at which point keeping them merged would have handed
- * every member the ability to add and remove people. Use canManageMembers() for
- * anything that changes who is in the project.
- */
-export function canManageProject(actor: TicketActor): boolean {
-  return (
-    actor.isSystemAdmin ||
-    actor.projectRole === "MEMBER" ||
-    actor.projectRole === "MANAGER"
-  );
-}
-
-/** Adds and removes people, and changes their roles. MANAGER or system admin. */
-export function canManageMembers(actor: TicketActor): boolean {
-  return actor.isSystemAdmin || actor.projectRole === "MANAGER";
-}
-
-/** May raise a ticket here. A VIEWER is read-only. */
-export function canCreateTickets(actor: TicketActor): boolean {
-  return (
-    actor.isSystemAdmin ||
-    actor.projectRole === "MEMBER" ||
-    actor.projectRole === "AGENT" ||
-    actor.projectRole === "MANAGER"
-  );
-}
-
-/** Hands work to someone else. Mirrors ticket_assignees_insert. */
-export function canAssignToOthers(actor: TicketActor): boolean {
-  return canManageProject(actor);
-}
 
 /** Everyone in a project, for the members table and assignee pickers. */
 export const listProjectMembers = cache(

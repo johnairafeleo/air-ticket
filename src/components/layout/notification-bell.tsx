@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useTransition } from "react";
+import { useCallback, useEffect, useRef, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { formatDistanceToNow } from "date-fns";
+import { RelativeTime } from "@/components/common/relative-time";
 import { Bell, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -57,6 +57,21 @@ export function NotificationBell({
   // and every path that changes them ends in router.refresh() — mirroring them
   // into useState would mean two sources of truth that drift the moment another
   // tab marks something read.
+
+  // The subscription must not depend on `router`. Its own handler calls
+  // router.refresh(), so listing router as a dependency risks a loop: refresh
+  // -> re-render -> effect torn down -> removeChannel() closes the shared
+  // socket (it disconnects once no channels remain) -> the replacement channel
+  // joins a socket that is going away and reports CHANNEL_ERROR 1001. Holding
+  // it in a ref keeps the channel alive for the lifetime of the component.
+  const routerRef = useRef(router);
+
+  // Assigned in an effect rather than during render: a ref written while
+  // rendering is not safe under concurrent rendering, since a render can be
+  // discarded after the write.
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -114,17 +129,23 @@ export function NotificationBell({
                   ? "You were removed from a ticket."
                   : "A ticket you follow has moved.",
             );
-            router.refresh();
+            routerRef.current.refresh();
           },
         )
         // Without a status callback a broken subscription is indistinguishable
         // from a quiet one, which is what made this hard to diagnose the first
-        // time. CHANNEL_ERROR here usually means Realtime is disabled for the
-        // project, or the table is not in the supabase_realtime publication.
+        // time.
         .subscribe((status, err) => {
-          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-            console.error(`[notifications] realtime ${status}`, err);
-          }
+          if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT") return;
+
+          // Close code 1001 is "going away": the shared socket was closed
+          // under us rather than the join being refused. In development that
+          // happens routinely — every HMR update replaces the module and its
+          // client. realtime-js reconnects on its own, so reporting it as a
+          // failure is noise that buries the errors that do matter.
+          if (/1001/.test(err?.message ?? "")) return;
+
+          console.error(`[notifications] realtime ${status}`, err);
         });
     })();
 
@@ -134,7 +155,7 @@ export function NotificationBell({
       // notification arrives twice.
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [userId, router]);
+  }, [userId]);
 
   const openTicket = useCallback(
     (n: NotificationWithContext) => {
@@ -224,11 +245,10 @@ export function NotificationBell({
                   <span className="text-xs text-muted-foreground">
                     {describeNotification(n)}
                   </span>
-                  <span className="text-[11px] text-muted-foreground/70">
-                    {formatDistanceToNow(new Date(n.created_at), {
-                      addSuffix: true,
-                    })}
-                  </span>
+                  <RelativeTime
+                    value={n.created_at}
+                    className="text-[11px] text-muted-foreground/70"
+                  />
                 </button>
               </li>
             ))}

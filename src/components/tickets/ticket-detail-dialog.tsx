@@ -6,7 +6,8 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { ExternalLink, Loader2, Pencil } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
+import { RelativeTime } from "@/components/common/relative-time";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -252,10 +253,7 @@ export function TicketDetailDialog({
                 Created {format(new Date(ticket.created_at), "d MMM yyyy, HH:mm")}
               </span>
               <span>
-                Updated{" "}
-                {formatDistanceToNow(new Date(ticket.updated_at), {
-                  addSuffix: true,
-                })}
+                Updated <RelativeTime value={ticket.updated_at} />
               </span>
             </div>
           </div>

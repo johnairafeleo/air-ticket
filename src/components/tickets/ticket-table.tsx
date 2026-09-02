@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
+import { RelativeTime } from "@/components/common/relative-time";
 import { Inbox } from "lucide-react";
 
 import {
@@ -106,9 +106,7 @@ export function TicketTable({ tickets }: { tickets: TicketWithRelations[] }) {
               </TableCell>
 
               <TableCell className="text-sm text-muted-foreground">
-                {formatDistanceToNow(new Date(ticket.updated_at), {
-                  addSuffix: true,
-                })}
+                <RelativeTime value={ticket.updated_at} />
               </TableCell>
             </TableRow>
           ))}

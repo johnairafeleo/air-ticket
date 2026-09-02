@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
-import { formatDistanceToNow, format } from "date-fns";
+import { RelativeTime } from "@/components/common/relative-time";
 import { CheckCheck, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -116,14 +116,10 @@ export function NotificationList({
               <p className="text-sm text-muted-foreground">
                 {describeNotification(n)}
               </p>
-              <p
-                className="text-xs text-muted-foreground/70"
-                title={format(new Date(n.created_at), "d MMM yyyy, HH:mm")}
-              >
-                {formatDistanceToNow(new Date(n.created_at), {
-                  addSuffix: true,
-                })}
-              </p>
+              <RelativeTime
+                value={n.created_at}
+                className="block text-xs text-muted-foreground/70"
+              />
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
