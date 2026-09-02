@@ -20,6 +20,7 @@ export type NavIconName =
   | "users"
   | "projects"
   | "members"
+  | "notifications"
   | "profile";
 
 export type NavItem = {
@@ -61,6 +62,14 @@ const SECTIONS: NavSection[] = [
         href: "/tickets/board",
         label: "Board",
         icon: "board",
+        minRole: "USER",
+      },
+      {
+        // Personal, not project-scoped: RLS limits the page to your own rows,
+        // so it needs no role gate at all.
+        href: "/notifications",
+        label: "Notifications",
+        icon: "notifications",
         minRole: "USER",
       },
       {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Bell,
   Columns3,
   FolderKanban,
   LayoutDashboard,
@@ -33,6 +34,7 @@ const ICONS: Record<NavIconName, LucideIcon> = {
   users: Users,
   projects: FolderKanban,
   members: UsersRound,
+  notifications: Bell,
   profile: UserCircle,
 };
 

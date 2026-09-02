@@ -93,3 +93,20 @@ export type TicketWithRelations = Ticket & {
 
 /** The planning dates, kept together since they are always edited as a pair. */
 export type TicketSchedule = Pick<Ticket, "start_date" | "end_date">;
+
+// --- Notifications -----------------------------------------------------------
+
+export type NotificationType = Database["public"]["Enums"]["notification_type"];
+export type Notification = Database["public"]["Tables"]["notifications"]["Row"];
+
+/**
+ * A notification joined with the ticket it refers to and whoever caused it.
+ *
+ * Both are nullable: `actor_id` is nulled when that profile is deleted, and the
+ * ticket embed can come back null if RLS hides it — a notification outliving
+ * the caller's access to its ticket is possible after a role change.
+ */
+export type NotificationWithContext = Notification & {
+  ticket: Pick<Ticket, "id" | "ticket_number" | "title"> | null;
+  actor: Pick<Profile, "id" | "full_name" | "email" | "avatar_url"> | null;
+};

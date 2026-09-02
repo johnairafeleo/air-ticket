@@ -1,15 +1,21 @@
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { UserMenu } from "@/components/layout/user-menu";
 import { RoleBadge } from "@/components/layout/role-badge";
 import type { NavSection } from "@/components/layout/nav-items";
-import type { Profile } from "@/types/app";
+import type { NotificationWithContext, Profile } from "@/types/app";
 
 export function AppTopbar({
   profile,
   sections,
+  notifications,
+  unreadCount,
 }: {
   profile: Profile;
   sections: NavSection[];
+  /** Rendered on the server so the bell is correct on first paint. */
+  notifications: NotificationWithContext[];
+  unreadCount: number;
 }) {
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/75 sm:px-6">
@@ -24,6 +30,11 @@ export function AppTopbar({
         </p>
       </div>
 
+      <NotificationBell
+        userId={profile.id}
+        items={notifications}
+        unread={unreadCount}
+      />
       <RoleBadge role={profile.role} className="hidden sm:inline-flex" />
       <UserMenu profile={profile} />
     </header>

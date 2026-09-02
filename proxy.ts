@@ -20,7 +20,13 @@ import { copyCookies, updateSession } from "@/lib/supabase/proxy";
  */
 
 /** Prefixes that require a session. */
-const PROTECTED_PREFIXES = ["/dashboard", "/tickets", "/admin", "/profile"];
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/tickets",
+  "/admin",
+  "/profile",
+  "/notifications",
+];
 
 export async function proxy(request: NextRequest) {
   const { response, user } = await updateSession(request);

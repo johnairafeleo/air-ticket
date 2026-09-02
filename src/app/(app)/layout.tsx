@@ -3,6 +3,10 @@ import { getActiveProjectId, listProjects } from "@/lib/projects/active";
 import { navSectionsFor } from "@/components/layout/nav-items";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
+import {
+  listNotifications,
+  unreadNotificationCount,
+} from "@/lib/notifications/queries";
 
 /**
  * Shell for the authenticated area.
@@ -20,10 +24,13 @@ import { AppTopbar } from "@/components/layout/app-topbar";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const { profile } = await requireUser();
 
-  const [projects, activeProjectId] = await Promise.all([
-    listProjects(),
-    getActiveProjectId(),
-  ]);
+  const [projects, activeProjectId, notifications, unreadCount] =
+    await Promise.all([
+      listProjects(),
+      getActiveProjectId(),
+      listNotifications(),
+      unreadNotificationCount(),
+    ]);
 
   const sections = navSectionsFor(profile);
 
@@ -36,7 +43,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <AppTopbar profile={profile} sections={sections} />
+        <AppTopbar
+          profile={profile}
+          sections={sections}
+          notifications={notifications}
+          unreadCount={unreadCount}
+        />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>

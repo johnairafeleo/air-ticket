@@ -164,6 +164,13 @@ export function TicketBoard({
 
   return (
     <DndContext
+      // Required for SSR. dnd-kit derives the `aria-describedby` on every
+      // draggable from useUniqueId(), which is a MODULE-LEVEL counter rather
+      // than React's useId — so the server renders DndDescribedBy-0 while the
+      // client, whose counter has already been advanced by StrictMode's double
+      // invoke, renders -1, and React reports a hydration mismatch on every
+      // card. Passing an explicit id makes useUniqueId return it verbatim.
+      id="ticket-board"
       sensors={sensors}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}

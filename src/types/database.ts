@@ -252,6 +252,34 @@ export type Database = {
           },
         ];
       };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          ticket_id: string;
+          type: Database["public"]["Enums"]["notification_type"];
+          actor_id: string | null;
+          from_status: Database["public"]["Enums"]["ticket_status"] | null;
+          to_status: Database["public"]["Enums"]["ticket_status"] | null;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          ticket_id: string;
+          type: Database["public"]["Enums"]["notification_type"];
+          actor_id?: string | null;
+          from_status?: Database["public"]["Enums"]["ticket_status"] | null;
+          to_status?: Database["public"]["Enums"]["ticket_status"] | null;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          read_at?: string | null;
+        };
+        Relationships: [];
+      };
       ticket_assignees: {
         Row: {
           ticket_id: string;
@@ -348,6 +376,7 @@ export type Database = {
         | "CLOSED";
       ticket_priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
       project_role: "VIEWER" | "MEMBER" | "AGENT" | "MANAGER";
+      notification_type: "STATUS_CHANGED" | "ASSIGNED" | "UNASSIGNED";
     };
     CompositeTypes: {
       [_ in never]: never;
