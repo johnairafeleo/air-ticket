@@ -91,7 +91,21 @@ export const listProjectMembers = cache(
       .eq("project_id", projectId)
       .order("role", { ascending: false });
 
-    if (error) return [];
+    if (error) {
+      // Returning [] silently renders as "0 people · No members yet", which is
+      // indistinguishable from a project that genuinely has no members — and is
+      // exactly how a PGRST201 ambiguity hid in production for a whole release.
+      // The empty list stays (a members table is not worth an error boundary),
+      // but the cause now reaches the server logs.
+      console.error(
+        `[projects] Could not load members for project ${projectId}: ` +
+          `${error.code ?? "?"} ${error.message}. ` +
+          "PGRST201 here means an embed onto profiles is missing its FK hint — " +
+          "project_members has two foreign keys to that table.",
+      );
+      return [];
+    }
+
     return (data ?? []) as unknown as ProjectMemberWithProfile[];
   },
 );
