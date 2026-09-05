@@ -78,12 +78,104 @@ const TICKET_SELECT = [
  */
 const ASSIGNED_TO_ME_JOIN = `,mine:ticket_assignees!inner(user_id)` as const;
 
+/**
+ * The same trick again, for the "assigned to <person>" filter.
+ *
+ * A SECOND alias rather than reusing `mine`: the two filters are independent,
+ * and "assigned to me" plus "assigned to Ada" on one join would be two
+ * contradictory equalities on the same column, matching nothing. Separate
+ * aliases make it an intersection — tickets you are both on — which is what
+ * choosing both filters should mean.
+ */
+const ASSIGNEE_FILTER_JOIN = `,assignee_filter:ticket_assignees!inner(user_id)` as const;
+
 export type TicketListResult = {
   tickets: TicketWithRelations[];
   total: number;
   page: number;
   pageCount: number;
 };
+
+/**
+ * The select string for a given set of filters.
+ *
+ * Each join is added ONLY when its filter is active. An unused `!inner` would
+ * still restrict the result to tickets that have at least one assignee, which
+ * would quietly hide every unassigned ticket.
+ */
+function selectFor(filters: TicketFilters): string {
+  return (
+    TICKET_SELECT +
+    (filters.scope === "assigned" ? ASSIGNED_TO_ME_JOIN : "") +
+    (filters.assigneeId ? ASSIGNEE_FILTER_JOIN : "")
+  );
+}
+
+/**
+ * Everything except status, pagination and ordering.
+ *
+ * Shared by the list and the board so the same URL means the same thing in
+ * both. Status is excluded because the board's columns ARE the statuses — it
+ * fixes its own per column — and the list applies it separately.
+ *
+ * Structurally typed rather than importing PostgREST's builder types: every
+ * method here returns the same builder, so the generic threads through without
+ * depending on the shape of a transitive dependency.
+ */
+function applyTicketFilters<
+  Q extends {
+    eq(column: string, value: string | number): Q;
+    in(column: string, values: readonly string[]): Q;
+    or(filter: string): Q;
+  },
+>(
+  query: Q,
+  actor: Profile,
+  filters: TicketFilters,
+  projectId?: string | null,
+): Q {
+  let q = query;
+
+  if (projectId) q = q.eq("project_id", projectId);
+  if (filters.priority.length > 0) q = q.in("priority", filters.priority);
+  if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
+
+  // Filter by person. Both narrow within what RLS already permits.
+  if (filters.createdBy) q = q.eq("created_by", filters.createdBy);
+  if (filters.assigneeId) q = q.eq("assignee_filter.user_id", filters.assigneeId);
+
+  switch (filters.scope) {
+    case "mine":
+      q = q.eq("created_by", actor.id);
+      break;
+    case "assigned":
+      // Filters through the aliased inner join, so the assignees embed still
+      // comes back with everyone on the ticket, not just the caller.
+      q = q.eq("mine.user_id", actor.id);
+      break;
+    case "unassigned":
+      // The denormalised count, rather than a NOT EXISTS PostgREST cannot
+      // express alongside the other filters and pagination. A trigger keeps it
+      // true, and guard_ticket_change() recomputes it so it cannot be spoofed.
+      q = q.eq("assignee_count", 0);
+      break;
+    default:
+      break;
+  }
+
+  if (filters.q) {
+    // Escape PostgREST's or() delimiters so a comma or paren in the search box
+    // cannot alter the filter expression.
+    const term = filters.q.replace(/[,()]/g, " ").trim();
+    if (term) {
+      q = q.or(
+        `title.ilike.%${term}%,description.ilike.%${term}%,ticket_number.ilike.%${term}%`,
+      );
+    }
+  }
+
+  return q;
+}
 
 export async function listTickets(
   actor: Profile,
@@ -96,53 +188,18 @@ export async function listTickets(
 
   let query = supabase
     .from("tickets")
-    .select(
-      filters.scope === "assigned"
-        ? `${TICKET_SELECT}${ASSIGNED_TO_ME_JOIN}`
-        : TICKET_SELECT,
-      { count: "exact" },
-    )
+    .select(selectFor(filters), { count: "exact" })
     .order("created_at", { ascending: false })
     .range(from, from + TICKETS_PER_PAGE - 1)
-    // Soft-deleted tickets are hidden from every read. See SOFT_DELETE below.
+    // Soft-deleted tickets are hidden from every read. See SOFT_DELETE above.
     .is("deleted_at", null);
 
-  // Status and priority are lists so a filter can express "high or urgent" and
-  // "not closed" — the combinations the dashboard cards count.
-  if (projectId) query = query.eq("project_id", projectId);
+  query = applyTicketFilters(query, actor, filters, projectId);
+
+  // Status is a list so a filter can express "high or urgent" and "not closed"
+  // — the combinations the dashboard cards count. Applied here rather than in
+  // the shared helper because the board fixes its own status per column.
   if (filters.status.length > 0) query = query.in("status", filters.status);
-  if (filters.priority.length > 0) query = query.in("priority", filters.priority);
-  if (filters.categoryId) query = query.eq("category_id", filters.categoryId);
-
-  switch (filters.scope) {
-    case "mine":
-      query = query.eq("created_by", actor.id);
-      break;
-    case "assigned":
-      // Filters through the aliased inner join, so the assignees embed still
-      // comes back with everyone on the ticket, not just the caller.
-      query = query.eq("mine.user_id", actor.id);
-      break;
-    case "unassigned":
-      // The denormalised count, rather than a NOT EXISTS PostgREST cannot
-      // express alongside the other filters and pagination. A trigger keeps it
-      // true, and guard_ticket_change() recomputes it so it cannot be spoofed.
-      query = query.eq("assignee_count", 0);
-      break;
-    default:
-      break;
-  }
-
-  if (filters.q) {
-    // Escape PostgREST's or() delimiters so a comma or paren in the search box
-    // cannot alter the filter expression.
-    const term = filters.q.replace(/[,()]/g, " ").trim();
-    if (term) {
-      query = query.or(
-        `title.ilike.%${term}%,description.ilike.%${term}%,ticket_number.ilike.%${term}%`,
-      );
-    }
-  }
 
   const { data, error, count } = await query;
 
@@ -199,6 +256,8 @@ export type BoardData = Record<TicketStatus, BoardColumnData>;
  * MEMBER sees only the tickets they raised.
  */
 export async function listBoardTickets(
+  actor: Profile,
+  filters: TicketFilters,
   projectId?: string | null,
 ): Promise<BoardData> {
   const supabase = await createClient();
@@ -207,11 +266,13 @@ export async function listBoardTickets(
     BOARD_COLUMNS.map(async (status) => {
       let query = supabase
         .from("tickets")
-        .select(TICKET_SELECT, { count: "exact" })
+        .select(selectFor(filters), { count: "exact" })
+        // The column IS the status filter here, which is why the shared helper
+        // deliberately leaves status alone.
         .eq("status", status)
         .is("deleted_at", null);
 
-      if (projectId) query = query.eq("project_id", projectId);
+      query = applyTicketFilters(query, actor, filters, projectId);
 
       const { data, error, count } = await query
         // Most urgent first, then most recently touched — the order an agent
@@ -270,3 +331,59 @@ export const listAssignableAgents = cache(async (): Promise<Profile[]> => {
   if (error) return [];
   return data ?? [];
 });
+
+/** A person who can appear in a ticket's creator or assignee slot. */
+export type TicketPerson = Pick<
+  Profile,
+  "id" | "full_name" | "email" | "avatar_url"
+>;
+
+/**
+ * Everyone who actually appears on this project's tickets.
+ *
+ * The person filters were originally fed from `project_members`, which is the
+ * wrong set: someone removed from the project, or assigned before they left,
+ * still shows in the "Assigned to" column but was missing from the dropdown —
+ * so the list offered names you could not see and hid names you could.
+ *
+ * Deduplicated in TypeScript rather than with a DISTINCT in SQL, which would
+ * need an RPC and therefore a migration. The cost is one row per ticket and one
+ * per assignment, which is nothing at this size; if a project ever reaches tens
+ * of thousands of tickets, this is the query to turn into a view.
+ *
+ * Runs under RLS like every other read, so it can only name people on tickets
+ * the caller may already see.
+ */
+export const listTicketPeople = cache(
+  async (
+    projectId: string,
+  ): Promise<{ creators: TicketPerson[]; assignees: TicketPerson[] }> => {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("tickets")
+      .select(
+        [
+          "creator:profiles!tickets_created_by_fkey(id,full_name,email,avatar_url)",
+          "assignees:ticket_assignees(...profiles!ticket_assignees_user_id_fkey(id,full_name,email,avatar_url))",
+        ].join(","),
+      )
+      .eq("project_id", projectId)
+      .is("deleted_at", null);
+
+    if (error) return { creators: [], assignees: [] };
+
+    const creators = new Map<string, TicketPerson>();
+    const assignees = new Map<string, TicketPerson>();
+
+    for (const row of (data ?? []) as unknown as {
+      creator: TicketPerson | null;
+      assignees: TicketPerson[];
+    }[]) {
+      if (row.creator) creators.set(row.creator.id, row.creator);
+      for (const person of row.assignees ?? []) assignees.set(person.id, person);
+    }
+
+    return { creators: [...creators.values()], assignees: [...assignees.values()] };
+  },
+);

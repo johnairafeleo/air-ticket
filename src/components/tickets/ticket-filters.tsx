@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PRIORITY_LABELS, STATUS_LABELS } from "@/lib/tickets/constants";
+import { displayName } from "@/lib/users";
+import type { TicketPerson } from "@/lib/tickets/queries";
 import {
   TICKET_PRIORITIES,
   TICKET_STATUSES,
@@ -32,11 +34,26 @@ const SCOPES = [
 
 export function TicketFilters({
   categories,
+  assigneeOptions,
+  creatorOptions,
   canSeeOthersTickets,
+  showStatus = true,
 }: {
   categories: Category[];
+  /**
+   * People who actually appear on this project's tickets, not the current
+   * member list — someone who has left still shows in the Assigned to column,
+   * so they must remain selectable here.
+   */
+  assigneeOptions: TicketPerson[];
+  creatorOptions: TicketPerson[];
   /** Project agents, managers and system admins see more than their own. */
   canSeeOthersTickets: boolean;
+  /**
+   * The board passes false: its columns already are the statuses, so the
+   * control would only ever blank out the columns it excluded.
+   */
+  showStatus?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -89,6 +106,8 @@ export function TicketFilters({
     priority: selectValue(priorityValues),
     categoryId: searchParams.get("categoryId") ?? ANY,
     scope: searchParams.get("scope") ?? "all",
+    assigneeId: searchParams.get("assigneeId") ?? ANY,
+    createdBy: searchParams.get("createdBy") ?? ANY,
   };
 
   const hasFilters =
@@ -96,6 +115,8 @@ export function TicketFilters({
     statusValues.length > 0 ||
     priorityValues.length > 0 ||
     current.categoryId !== ANY ||
+    current.assigneeId !== ANY ||
+    current.createdBy !== ANY ||
     current.scope !== "all";
 
   // A project MEMBER only ever sees their own tickets, so a scope picker would
@@ -103,9 +124,12 @@ export function TicketFilters({
   const showScope = canSeeOthersTickets;
 
   return (
-    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+    // Wraps rather than sitting on one line. With six controls the old
+    // `lg:flex-row` row overflowed the viewport and pushed the last filters off
+    // the right edge, where they were unreachable without horizontal scrolling.
+    <div className="mb-4 flex flex-col gap-3">
       <form
-        className="relative flex-1"
+        className="relative"
         onSubmit={(event) => {
           event.preventDefault();
           const value = new FormData(event.currentTarget).get("q");
@@ -142,25 +166,27 @@ export function TicketFilters({
           </Select>
         ) : null}
 
-        <Select value={current.status} onValueChange={(v) => apply({ status: v })}>
-          <SelectTrigger className="w-[150px]" aria-label="Status">
-            <SelectValue
-              placeholder={
-                statusValues.length > 1
-                  ? `${statusValues.length} statuses`
-                  : "Status"
-              }
-            />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ANY}>Any status</SelectItem>
-            {TICKET_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {STATUS_LABELS[s]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {showStatus ? (
+          <Select value={current.status} onValueChange={(v) => apply({ status: v })}>
+            <SelectTrigger className="w-[150px]" aria-label="Status">
+              <SelectValue
+                placeholder={
+                  statusValues.length > 1
+                    ? `${statusValues.length} statuses`
+                    : "Status"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ANY}>Any status</SelectItem>
+              {TICKET_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {STATUS_LABELS[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
 
         <Select
           value={current.priority}
@@ -201,6 +227,50 @@ export function TicketFilters({
             ))}
           </SelectContent>
         </Select>
+
+        {/* Person filters, hidden for anyone who only ever sees their own
+            tickets — the list would be one real option and several that return
+            nothing. */}
+        {showScope ? (
+          <>
+            <Select
+              value={current.assigneeId}
+              onValueChange={(v) => apply({ assigneeId: v })}
+            >
+              <SelectTrigger className="w-[170px]" aria-label="Assigned person">
+                <SelectValue placeholder="Assigned person" />
+              </SelectTrigger>
+              <SelectContent>
+                {/* Reads "Assigned person" rather than "Any assigned person":
+                    this is the resting label on the trigger, since the Select
+                    shows the selected item's text and ANY is the default. */}
+                <SelectItem value={ANY}>Assigned person</SelectItem>
+                {assigneeOptions.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {displayName(p)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={current.createdBy}
+              onValueChange={(v) => apply({ createdBy: v })}
+            >
+              <SelectTrigger className="w-[170px]" aria-label="Raised by">
+                <SelectValue placeholder="Raised by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY}>Raised by anyone</SelectItem>
+                {creatorOptions.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {displayName(p)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        ) : null}
 
         {hasFilters ? (
           <Button

@@ -171,6 +171,11 @@ export const ticketFiltersSchema = z.object({
   priority: multiEnum(TICKET_PRIORITIES),
   categoryId: z.uuid().optional(),
   scope: z.enum(["all", "mine", "assigned", "unassigned"]).optional(),
+  // Filter by person. These narrow what RLS already allows — they can never
+  // widen it, so asking for someone else's tickets returns only the ones you
+  // could already see.
+  assigneeId: z.uuid().optional(),
+  createdBy: z.uuid().optional(),
   page: z.coerce.number().int().min(1).max(1000).default(1),
 });
 

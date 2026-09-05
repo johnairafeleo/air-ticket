@@ -9,11 +9,17 @@ import { TicketTable } from "@/components/tickets/ticket-table";
 import { ViewToggle } from "@/components/tickets/view-toggle";
 import { NewTicketDialog } from "@/components/tickets/new-ticket-dialog";
 import { requireUser } from "@/lib/auth/require-user";
-import { listCategories, listTickets } from "@/lib/tickets/queries";
+import {
+  listCategories,
+  listTicketPeople,
+  listTickets,
+  type TicketPerson,
+} from "@/lib/tickets/queries";
 import { getActiveProject, listProjects } from "@/lib/projects/active";
 import {
   getTicketActor,
   getTicketAssigning,
+  listProjectMembers,
   isProjectStaff,
 } from "@/lib/projects/access";
 import { NoProjects } from "@/components/projects/no-projects";
@@ -43,12 +49,33 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
     );
   }
 
-  const [actor, categories, projects, result] = await Promise.all([
-    getTicketActor(profile, activeProject.id),
-    listCategories(),
-    listProjects(),
-    listTickets(profile, filters, activeProject.id),
-  ]);
+  const [actor, categories, projects, result, members, people] =
+    await Promise.all([
+      getTicketActor(profile, activeProject.id),
+      listCategories(),
+      listProjects(),
+      listTickets(profile, filters, activeProject.id),
+      listProjectMembers(activeProject.id),
+      listTicketPeople(activeProject.id),
+    ]);
+
+  /**
+   * Union of current members and whoever actually appears on the tickets.
+   *
+   * Neither list alone is right: members-only drops someone who has left but is
+   * still assigned, while tickets-only drops a member who has no tickets yet —
+   * and filtering by them (correctly returning nothing) is a legitimate thing
+   * to ask.
+   */
+  const peopleOptions = (extra: TicketPerson[]) => {
+    const byId = new Map(extra.map((p) => [p.id, p]));
+    for (const m of members) {
+      if (m.profile && !byId.has(m.profile.id)) byId.set(m.profile.id, m.profile);
+    }
+    return [...byId.values()].sort((a, b) =>
+      (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email),
+    );
+  };
 
   const staff = isProjectStaff(actor);
   const assigning = await getTicketAssigning(actor, activeProject.id);
@@ -78,7 +105,12 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
         }
       />
 
-      <TicketFilters categories={categories} canSeeOthersTickets={staff} />
+      <TicketFilters
+        categories={categories}
+        assigneeOptions={peopleOptions(people.assignees)}
+        creatorOptions={peopleOptions(people.creators)}
+        canSeeOthersTickets={staff}
+      />
 
       <Card>
         <CardContent className="p-0">
